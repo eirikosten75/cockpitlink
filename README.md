@@ -198,3 +198,12 @@ rebuild.
 - **The control panel looks out of date:** press F5. The page also reloads itself when the bridge restarts.
 - **Antivirus warning about the exe:** exes built with PyInstaller are sometimes flagged by mistake. Add an exception
   for the folder, or run from Python instead.
+
+## Licence
+
+Virpil LED Bridge is free software, released under the **GNU General Public License v3.0** – see [LICENSE](LICENSE).
+You may use, change and share it; if you distribute a modified version, it must also be released under GPL-3.0 with
+its source code.
+
+Not affiliated with Virpil Controls or Microsoft. `VPC_LED_Control.exe` is part of Virpil's VPC Software Suite and is
+not included here.
