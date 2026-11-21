@@ -7,6 +7,15 @@ Drives the LEDs on Virpil controllers from what happens in MSFS. The program run
 
 The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which comes with the VPC Software Suite.
 
+## ⬇️ Download
+
+**[Download the latest version (VirpilLedBridge-v1.2.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v1.2/VirpilLedBridge-v1.2.zip)**
+– or see all versions under [Releases](https://github.com/eirikosten75/virpil-led-bridge/releases).
+
+The zip contains `VirpilLedBridge.exe` (no Python needed), an example `config.json`, `layouts.json`, this README and
+the licence. Unzip it to a folder of your choice and follow the quick start below. The example `config.json` is the
+author's own setup – adapt it to your devices (section 2).
+
 ## 1. Quick start
 
 1. Install the **VPC Software Suite** from Virpil (it contains `VPC_LED_Control.exe`).
