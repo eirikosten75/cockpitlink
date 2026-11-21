@@ -1,0 +1,17 @@
+# Written by the bridge while it runs
+bridge.log
+bridge.log.*
+backups/
+*.json.tmp
+
+# Build output (the exe is published as a GitHub release instead)
+VirpilLedBridge.exe
+icon.ico
+build/
+dist/
+*.spec
+
+# Python
+__pycache__/
+*.pyc
+.venv/

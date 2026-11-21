@@ -1,0 +1,1395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virpil LED Bridge</title>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --surface-2: #eceef1;
+    --text: #1b1d21;
+    --muted: #5d636e;
+    --border: #d8dbe0;
+    --accent: #2563eb;
+    --ok: #15803d;
+    --ok-bg: #dcfce7;
+    --warn: #a16207;
+    --warn-bg: #fef3c7;
+    --err: #b91c1c;
+    --err-bg: #fee2e2;
+    --panel: #16181c;       /* the panel face is always dark, like the hardware */
+    --panel-edge: #2c3038;
+    --panel-print: #c9ccd2;
+    --led-off: #2a2d33;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1114;
+      --surface: #181b20;
+      --surface-2: #20242b;
+      --text: #e6e8eb;
+      --muted: #9aa1ac;
+      --border: #2c313a;
+      --accent: #60a5fa;
+      --ok: #4ade80;
+      --ok-bg: #12301d;
+      --warn: #facc15;
+      --warn-bg: #352b08;
+      --err: #f87171;
+      --err-bg: #3b1414;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1114; --surface: #181b20; --surface-2: #20242b; --text: #e6e8eb; --muted: #9aa1ac;
+    --border: #2c313a; --accent: #60a5fa; --ok: #4ade80; --ok-bg: #12301d; --warn: #facc15;
+    --warn-bg: #352b08; --err: #f87171; --err-bg: #3b1414;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, "Segoe UI", sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+    padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    background: var(--surface-2); color: var(--muted); font-size: 13px; white-space: nowrap;
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.err { background: var(--err-bg); color: var(--err); }
+  .pill b { color: var(--text); font-weight: 600; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #pAuto { cursor: pointer; }
+  #pAuto input { margin: 0; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer;
+  }
+  button:hover { background: var(--surface-2); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.danger { color: var(--err); }
+  button:disabled { opacity: .55; cursor: default; }
+
+  main { padding: 20px; display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); align-items: start; }
+  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .devices { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .card h2 { font-size: 14px; margin: 0; padding: 10px 14px; display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); }
+  .card h2 small { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: 12px; }
+  .card.wide { grid-column: 1 / -1; }
+
+  /* Panel face */
+  .face { position: relative; background: var(--panel); margin: 12px; border-radius: 14px; border: 2px solid var(--panel-edge); }
+  .face.drawn { aspect-ratio: 1310 / 1490; max-width: 520px; margin-inline: auto; }
+  .deco { position: absolute; border: 1.5px solid #3a3f48; border-radius: 8px; color: var(--panel-print); font-size: 11px;
+          display: flex; align-items: center; justify-content: center; letter-spacing: 1px; opacity: .8; }
+  .lbl { position: absolute; z-index: 3; left: 50%; bottom: calc(100% + 1px); transform: translateX(-50%);
+         color: var(--panel-print); font-size: 10.5px; line-height: 1.1; font-weight: 600; pointer-events: none;
+         white-space: nowrap; background: none !important; }
+  .lbl.below { bottom: auto; top: calc(100% + 1px); }
+
+  .led { position: absolute; transform: translate(-50%, -50%); background: var(--led-off); border: 1px solid #00000066; cursor: default; }
+  .led.btn { width: 10.5%; aspect-ratio: 1; border-radius: 6px; border: 2px solid #9aa0aa55; }
+  .led.round { width: 3.6%; aspect-ratio: 1; border-radius: 50%; }
+  .led.rect { width: 5%; aspect-ratio: 2.2; border-radius: 2px; }
+  .led.unknown { background: transparent; border: 1px dashed #6b7280; }
+  .led.blink { animation: blink 1s steps(1, end) infinite; }
+  @keyframes blink { 50% { background: var(--led-off); box-shadow: none; } }
+
+  /* Grid for devices without a drawing */
+  .face.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; padding: 14px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .cell .led { position: static; transform: none; width: 34px; height: 34px; border-radius: 7px; }
+  .cell span { color: var(--panel-print); font-size: 11px; font-family: var(--mono); text-align: center; word-break: break-all; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0 14px 12px; color: var(--muted); font-size: 12px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+
+  /* Log */
+  .log { height: calc(100vh - 140px); min-height: 320px; display: flex; flex-direction: column; position: sticky; top: 76px; }
+  @media (max-width: 1000px) { .log { position: static; height: 420px; } }
+  .log .tools { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); align-items: center; }
+  .log input[type=search] { flex: 1; font: inherit; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); color: var(--text); min-width: 0; }
+  .log label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .lines { flex: 1; overflow: auto; font: 12px/1.5 var(--mono); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; }
+  .lines .WARNING { color: var(--warn); }
+  .lines .ERROR { color: var(--err); }
+  .lines .DEBUG { color: var(--muted); }
+
+  /* Setup */
+  .card h2 .right { display: flex; align-items: center; gap: 10px; }
+  button.small { padding: 3px 10px; font-size: 12px; border-radius: 7px; font-weight: 500; }
+  button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .setup { border-top: 1px solid var(--border); padding: 12px 14px 14px; display: grid; gap: 10px; }
+  .setup[hidden] { display: none; }
+  .setup .hint { color: var(--muted); font-size: 13px; margin: 0; }
+  .setup .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .setup input[type=text], .setup input[type=number] {
+    font: inherit; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); color: var(--text); min-width: 0;
+  }
+  .setup input[type=number] { width: 70px; }
+  .setup .rows { display: grid; gap: 4px; }
+  .setup .row { display: grid; grid-template-columns: 18px 34px minmax(120px, 1fr) auto auto; gap: 8px; align-items: center;
+                padding: 4px 6px; border-radius: 8px; }
+  .setup .row.active { background: var(--surface-2); outline: 2px solid var(--accent); }
+  .setup .row .uses { grid-column: 3 / -1; color: var(--muted); font-size: 12px; margin-top: -2px; }
+  .setup .row code { font-family: var(--mono); color: var(--muted); }
+  .setup .sw { width: 16px; height: 16px; border-radius: 4px; background: var(--led-off); border: 1px solid #0004; }
+  .setup .row.dirty input { border-color: var(--warn); }
+  .walkbar { display: none; position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 0 0; }
+  .walking .walkbar { display: flex; }
+  .face .led.pick { cursor: pointer; }
+  .face .led.pick:hover { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Rules */
+  #rulesCard { margin-bottom: 20px; }
+  .rules { display: grid; }
+  .rule { display: grid; grid-template-columns: 22px minmax(140px, 1.2fr) minmax(150px, 1fr) minmax(120px, .9fr) auto; gap: 6px 12px;
+          align-items: center; padding: 8px 14px; border-top: 1px solid var(--border); }
+  .rule:first-child { border-top: 0; }
+  .rule.off { opacity: .5; }
+  .rule .nm { font-weight: 600; }
+  .rule .sub { color: var(--muted); font-size: 12px; font-family: var(--mono); word-break: break-all; }
+  .rule .val { font-family: var(--mono); font-size: 13px; }
+  .rule .val .mv { color: var(--warn); font-family: system-ui, sans-serif; font-size: 12px; margin-left: 6px; }
+  .rule .chips { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 1px 8px 1px 4px; border-radius: 999px;
+          background: var(--surface-2); color: var(--muted); border: 1px solid transparent; }
+  .chip.hit { border-color: var(--accent); color: var(--text); }
+  .chip .sw, .cbtn .sw, .pal .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; border: 1px solid #0005; }
+  .sw.base { background: repeating-linear-gradient(45deg, #777 0 3px, #444 3px 6px) !important; }
+  .rule .acts { display: flex; gap: 4px; justify-content: flex-end; }
+  .rule .led-now { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; background: var(--led-off); }
+  .empty { padding: 16px; color: var(--muted); }
+
+  dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; background: var(--surface); color: var(--text);
+           width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 32px); }
+  dialog::backdrop { background: #0008; }
+  dialog form { display: grid; gap: 14px; padding: 18px 20px; }
+  dialog h3 { margin: 0; font-size: 16px; }
+  .fld { display: grid; gap: 4px; }
+  .fld > span { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .2px; }
+  .fld small { color: var(--muted); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 600px) { .two { grid-template-columns: 1fr; } }
+  dialog input[type=text], dialog input[type=number], dialog select {
+    font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); min-width: 0; width: 100%;
+  }
+  .sv { position: relative; }
+  .sv .row1 { display: flex; gap: 6px; }
+  .sv .idx { width: 80px !important; flex: none; }
+  .sv .list { position: absolute; z-index: 40; left: 0; right: 0; top: 100%; margin-top: 2px; max-height: 280px; overflow: auto;
+              background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px #0005; display: none; }
+  .sv .list div { padding: 6px 10px; cursor: pointer; border-top: 1px solid var(--border); }
+  .sv .list div:first-child { border-top: 0; }
+  .sv .list div:hover, .sv .list div.sel { background: var(--surface-2); }
+  .sv .list b { font-family: var(--mono); font-size: 12px; }
+  .sv .list i { color: var(--muted); font-style: normal; font-size: 12px; display: block; }
+  .sv .info { font-size: 12px; color: var(--muted); }
+  .sv .info .live { font-family: var(--mono); color: var(--text); }
+  .states { display: grid; gap: 6px; }
+  .st { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+  .st select { width: auto !important; }
+  .st.hit { outline: 2px solid var(--accent); }
+  .st .vals { display: flex; gap: 6px; align-items: center; }
+  .st .vals input { width: 90px !important; }
+  @media (max-width: 600px) { .st { grid-template-columns: 1fr 1fr; } }
+  .cbtn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .pal { position: fixed; z-index: 60; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+         box-shadow: 0 12px 34px #0006; display: none; width: 300px; }
+  .pal .grid { display: grid; grid-template-columns: 70px repeat(3, 1fr); gap: 4px; align-items: center; font-size: 12px; }
+  .pal .grid button { padding: 4px; display: flex; justify-content: center; }
+  .pal .grid button .sw { width: 22px; height: 16px; }
+  .pal .named { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .pal .named button { font-size: 12px; padding: 2px 8px; display: inline-flex; gap: 5px; align-items: center; }
+  .pal h4 { margin: 8px 0 4px; font-size: 12px; color: var(--muted); }
+  .dlg-foot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  .dlg-foot .err { color: var(--err); margin-right: auto; font-size: 13px; }
+  .oi { display: grid; gap: 8px; padding: 10px; border-radius: 10px; border: 1px dashed var(--border); }
+
+  .tip { position: fixed; z-index: 20; pointer-events: none; background: #111318; color: #e6e8eb; border: 1px solid #333842;
+         border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: 280px; display: none; box-shadow: 0 6px 20px #0006; }
+  .tip b { font-family: var(--mono); }
+  .tip .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 30; padding: 10px 16px; border-radius: 10px;
+           background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 28px #0003; display: none; max-width: min(640px, calc(100vw - 32px)); }
+  .toast.err { border-color: var(--err); color: var(--err); }
+  .offline { display: none; margin: 20px; padding: 16px; border-radius: 12px; background: var(--err-bg); color: var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Virpil LED Bridge</h1>
+  <div class="pills">
+    <span class="pill" id="pSim"><span class="dot"></span><span>MSFS: …</span></span>
+    <span class="pill" id="pRules">Rules: …</span>
+    <span class="pill" id="pUptime">Uptime: …</span>
+    <span class="pill" id="pCfg">Config: …</span>
+  </div>
+  <div class="actions">
+    <label class="pill" id="pAuto" title="Start VirpilLedBridge.exe automatically when you sign in to Windows">
+      <input type="checkbox" id="chkAuto"> Start with Windows</label>
+    <button class="primary" id="btnReload" title="Read config.json again without restarting the bridge">Reload config</button>
+    <button class="danger" id="btnQuit" title="Sets the LEDs to their base colours and quits the bridge">Quit bridge</button>
+  </div>
+</header>
+
+<div class="offline" id="offline">Cannot reach the bridge. Has it been closed? Start VirpilLedBridge.exe and reload this page.</div>
+
+<main>
+  <section>
+    <div class="card" id="rulesCard">
+      <h2><span>Rules</span><span class="right"><small id="rulesInfo"></small><button class="small primary" type="button" id="btnNewRule">New rule</button></span></h2>
+      <div class="rules" id="rules"></div>
+    </div>
+    <div class="devices" id="devices"></div>
+  </section>
+  <aside class="card log">
+    <h2>Log <small id="logCount"></small></h2>
+    <div class="tools">
+      <input type="search" id="logFilter" placeholder="Filter, e.g. Flaps or ERROR">
+      <label><input type="checkbox" id="logFollow" checked> Follow</label>
+    </div>
+    <div class="lines" id="lines"></div>
+  </aside>
+</main>
+
+<dialog id="ruleDlg">
+  <form method="dialog" id="ruleForm" autocomplete="off">
+    <h3 id="ruleTitle">Edit rule</h3>
+    <div class="two">
+      <label class="fld"><span>Name</span><input type="text" id="rName" maxlength="60" required></label>
+      <label class="fld"><span>Active</span><label style="display:flex;gap:8px;align-items:center;padding-top:6px"><input type="checkbox" id="rEnabled"> The rule is in use</label></label>
+    </div>
+    <div class="two">
+      <label class="fld"><span>Panel</span><select id="rDevice"></select></label>
+      <label class="fld"><span>LED</span><select id="rLed"></select></label>
+    </div>
+    <div class="fld"><span>Simvar that drives the LED</span><div class="sv" id="rSimvar"></div></div>
+    <div class="fld">
+      <span>States – the first one that matches is used</span>
+      <div class="states" id="rStates"></div>
+      <div><button class="small" type="button" id="rAddState">+ Add state</button></div>
+    </div>
+    <details id="rMore">
+      <summary>More options: only for certain aircraft, extra condition</summary>
+      <div style="display:grid;gap:12px;margin-top:10px">
+        <label class="fld"><span>Only when the aircraft name contains</span><input type="text" id="rAircraft" placeholder="e.g. Cessna (empty = all aircraft)"><small>Not applied to other aircraft: the LED then keeps whatever it last had.</small></label>
+        <div class="oi">
+          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="rOiOn"> <b>Only when</b> another simvar meets a condition</label>
+          <div id="rOiBody" style="display:grid;gap:8px">
+            <div class="sv" id="rOiSimvar"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap" id="rOiCond"></div>
+            <div style="display:flex;gap:8px;align-items:center">Otherwise the LED gets <span id="rOiColor"></span></div>
+          </div>
+        </div>
+      </div>
+    </details>
+    <div class="dlg-foot">
+      <span class="err" id="rErr"></span>
+      <button type="button" id="rDelete" class="danger">Delete</button>
+      <button type="button" id="rCancel">Cancel</button>
+      <button type="button" id="rSave" class="primary">Save rule</button>
+    </div>
+  </form>
+</dialog>
+<div class="pal" id="pal"></div>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// Drawings of the panels, keyed by PID. They come from layouts.json next to config.json (via the bridge),
+// so they can be edited without rebuilding. LEDs are found by their names in config.json.
+let LAYOUTS = {};
+let layoutsMtime = null;
+async function loadLayouts() {
+  try {
+    const r = await (await fetch("/api/layouts", { cache: "no-store" })).json();
+    LAYOUTS = r.layouts || {};
+    if (r.error) toast(r.error, true);
+  } catch { /* shown by the status polling */ }
+  $("devices").dataset.sig = "";  // force the device cards to be rebuilt with the new drawings
+}
+
+const $ = (id) => document.getElementById(id);
+const LEVEL = { 0x00: 0, 0x40: 0.42, 0x80: 0.7, 0xFF: 1 };
+
+// LED colour for the screen. The panel only has four levels per channel; dim (40) would otherwise look almost
+// black on screen, so we show the full hue and let the level control how strongly it is mixed in and glows.
+function ledLook(rgb) {
+  if (!rgb) return null;
+  const ch = [0, 2, 4].map((i) => parseInt(rgb.slice(i, i + 2), 16));
+  const max = Math.max(...ch);
+  if (max === 0) return { bg: "var(--led-off)", glow: "none", off: true };
+  const lvl = LEVEL[max] ?? max / 255;
+  const hue = ch.map((c) => (c === 0 ? 0 : Math.round(255 * (0.35 + 0.65 * (c / max)))));
+  const base = [42, 45, 51];
+  const mix = hue.map((h, i) => Math.round(base[i] + (h - base[i]) * (0.12 + 0.88 * lvl * lvl)));
+  const css = `rgb(${mix.join(",")})`;
+  const glow = lvl >= 0.7 ? `0 0 ${Math.round(14 * lvl)}px rgba(${hue.join(",")},${0.55 * lvl})` : "none";
+  return { bg: css, glow, off: false };
+}
+
+function levelName(rgb) {
+  if (!rgb) return "unknown";
+  const max = Math.max(...[0, 2, 4].map((i) => parseInt(rgb.slice(i, i + 2), 16)));
+  return { 0: "off", 0x40: "dim", 0x80: "medium", 0xFF: "full" }[max] ?? "";
+}
+
+function primaryName(names) {
+  return names.find((n) => !/^led\d+$/.test(n)) ?? names[0];
+}
+
+let lastStatus = null;
+const ledEls = new Map(); // "dev/cmd" -> element
+
+function renderDevices(st) {
+  const root = $("devices");
+  const sig = JSON.stringify(st.devices.map((d) => [d.id, d.pid, d.name, d.leds.map((l) => [l.cmd, l.names])]));
+  let rebuilt = false;
+  if (root.dataset.sig !== sig) {
+    // Rebuild only when the layout changes (e.g. after “Reload config” or new names).
+    // The walkthrough and which cards have setup open survive this.
+    root.dataset.sig = sig;
+    root.innerHTML = "";
+    ledEls.clear();
+    swEls.clear();
+    for (const dev of st.devices) root.appendChild(buildDevice(dev));
+    rebuilt = true;
+  }
+  for (const dev of st.devices) {
+    for (const led of dev.leds) {
+      const look = ledLook(led.rgb);
+      const sw = swEls.get(dev.id + "/" + led.cmd);
+      if (sw) sw.style.background = look ? look.bg : "transparent";
+      const el = ledEls.get(dev.id + "/" + led.cmd);
+      if (!el) continue;
+      el.classList.toggle("unknown", !look);
+      el.classList.toggle("blink", !!(look && led.blink && !look.off));
+      el.style.background = look ? look.bg : "";
+      el.style.boxShadow = look ? look.glow : "none";
+      el._led = led;
+      el._dev = dev;
+    }
+  }
+  if (rebuilt) applyPendingFocus();
+}
+
+async function refreshNow() {
+  try {
+    const st = await (await fetch("/api/status", { cache: "no-store" })).json();
+    lastStatus = st;
+    renderHeader(st);
+    renderDevices(st);
+  } catch { /* the status polling shows that the bridge is gone */ }
+}
+
+function buildDevice(dev) {
+  const card = document.createElement("div");
+  const layout = LAYOUTS[dev.pid.toUpperCase()];
+  card.className = "card" + (layout?.wide ? " wide" : "");
+  const h = document.createElement("h2");
+  h.innerHTML = `<span></span><span class="right"><small></small><button class="small" type="button">Setup</button></span>`;
+  h.firstChild.textContent = dev.name;
+  h.querySelector("small").textContent = `${dev.id} · PID ${dev.pid} · ${dev.leds.length} LEDs`;
+  const setupBtn = h.querySelector("button");
+  card.appendChild(h);
+
+  const face = document.createElement("div");
+  if (layout) {
+    face.className = "face drawn";
+    if (layout.aspect) face.style.aspectRatio = layout.aspect;
+    for (const d of layout.deco || []) {
+      const el = document.createElement("div");
+      el.className = "deco";
+      Object.assign(el.style, { left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%" });
+      el.textContent = d.text;
+      face.appendChild(el);
+    }
+    const unplaced = [];
+    for (const led of dev.leds) {
+      const key = led.names.find((n) => layout.leds[n]);
+      if (!key) { unplaced.push(led); continue; }
+      const [x, y, shape, label, labelPos] = layout.leds[key];
+      const el = document.createElement("div");
+      el.className = "led " + shape;
+      Object.assign(el.style, { left: x + "%", top: y + "%" });
+      if (layout.btn && shape === "btn") el.style.width = layout.btn + "%";
+      face.appendChild(el);
+      ledEls.set(dev.id + "/" + led.cmd, el);
+      if (label) {
+        // The label hangs on the edge of its own button, so it can never end up under a neighbour.
+        const l = document.createElement("span");
+        l.className = "lbl" + (labelPos === "below" ? " below" : "");
+        l.textContent = label;
+        el.appendChild(l);
+      }
+    }
+    card.appendChild(face);
+    if (unplaced.length) card.appendChild(buildGrid(dev, unplaced, "Not placed on the drawing"));
+  } else {
+    card.appendChild(buildGrid(dev, dev.leds));
+  }
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  legend.innerHTML = ["40", "80", "FF"].map((v, i) =>
+    `<span><i style="background:${ledLook("00" + v + "00").bg}"></i>${["dim", "medium", "full"][i]}</span>`).join("") +
+    `<span><i style="background:var(--led-off)"></i>off</span><span><i style="border:1px dashed #6b7280"></i>not set by the bridge</span>`;
+  card.appendChild(legend);
+
+  const setup = buildSetup(dev);
+  card.appendChild(setup);
+  const open = (v) => {
+    setupOpen[v ? "add" : "delete"](dev.id);
+    setup.hidden = !v;
+    setupBtn.classList.toggle("on", v);
+    setupBtn.textContent = v ? "Close setup" : "Setup";
+    card.querySelectorAll(".face .led").forEach((el) => el.classList.toggle("pick", v));
+    if (!v) stopWalk(dev.id);
+  };
+  setupBtn.addEventListener("click", () => open(!setupOpen.has(dev.id)));
+  open(setupOpen.has(dev.id));
+
+  // In setup mode: click an LED to make it blink on the panel and jump to its row.
+  card.addEventListener("click", (e) => {
+    const el = e.target.closest(".face .led");
+    if (!el || !el._led || !setupOpen.has(dev.id)) return;
+    focusRow(dev.id, el._led.cmd, true);
+  });
+  return card;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Setup: LED names, finding them on the panel, adding new ones
+// ---------------------------------------------------------------------------------------------
+const setupOpen = new Set();
+const walking = {};      // dev -> index in the walkthrough
+let pendingFocus = null; // {dev, cmd, identify} to focus after the card is rebuilt
+const swEls = new Map(); // "dev/cmd" -> colour swatch in the setup list
+
+function buildSetup(dev) {
+  const box = document.createElement("div");
+  box.className = "setup";
+  box.hidden = true;
+  box.dataset.dev = dev.id;
+  box.innerHTML = `
+    <p class="hint">Click an LED (above or in the list) and it blinks white on the panel for a few seconds.
+      Give it one or more names, separated by commas, and press Save (or Enter). A name used by rules can be
+      swapped for one new name – the rules are then updated automatically. config.json is backed up to the <code>backups</code> folder.</p>
+    <div class="bar">
+      <label>Display name <input type="text" class="devname" maxlength="60"></label>
+      <button class="small" type="button" data-act="devname">Save name</button>
+      <span style="flex:1"></span>
+      <button class="small primary" type="button" data-act="walk">Walk through one by one</button>
+    </div>
+    <div class="rows"></div>
+    <div class="bar">
+      <span class="hint" style="margin:0">Missing an LED? Try command number</span>
+      <input type="number" class="newcmd" min="1" max="54" placeholder="05">
+      <button class="small" type="button" data-act="trycmd">Show</button>
+      <input type="text" class="newnames" placeholder="name, e.g. b3">
+      <button class="small" type="button" data-act="addcmd">Add</button>
+    </div>
+    <div class="bar walkbar">
+      <button class="small" type="button" data-act="prev">◀ Previous</button>
+      <button class="small" type="button" data-act="again">Show again</button>
+      <button class="small primary" type="button" data-act="next">Save and next ▶</button>
+      <button class="small" type="button" data-act="stop">Done</button>
+      <span class="hint walkpos" style="margin:0"></span>
+    </div>`;
+  box.querySelector(".devname").value = dev.name;
+  const rows = box.querySelector(".rows");
+  for (const led of dev.leds) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.dataset.cmd = led.cmd;
+    const orig = led.names.join(", ");
+    row.innerHTML = `<span class="sw"></span><code></code><input type="text" spellcheck="false">
+      <button class="small" type="button" data-act="show">Show</button>
+      <button class="small" type="button" data-act="save">Save</button><div class="uses"></div>`;
+    row.querySelector("code").textContent = led.cmd;
+    const inp = row.querySelector("input");
+    inp.value = orig;
+    inp.dataset.orig = orig;
+    inp.addEventListener("input", () => row.classList.toggle("dirty", inp.value.trim() !== orig));
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); walking[dev.id] != null ? walkNext(dev.id) : saveRow(dev.id, row); }
+      if (e.key === "Escape") stopWalk(dev.id);
+    });
+    inp.addEventListener("focus", () => markActive(dev.id, led.cmd));
+    const uses = Object.entries(led.used_by || {}).map(([n, u]) => `${n}: ${u.join(", ")}`);
+    row.querySelector(".uses").textContent = uses.length ? "In use – " + uses.join(" · ") : "";
+    if (!uses.length) row.querySelector(".uses").remove();
+    rows.appendChild(row);
+    swEls.set(dev.id + "/" + led.cmd, row.querySelector(".sw"));
+  }
+
+  box.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const row = btn.closest(".row");
+    switch (btn.dataset.act) {
+      case "show": focusRow(dev.id, row.dataset.cmd, true); break;
+      case "save": saveRow(dev.id, row); break;
+      case "devname": {
+        const res = await post("/api/device-name", { device: dev.id, name: box.querySelector(".devname").value });
+        res.ok ? toast(res.message) : toast(res.error, true);
+        await refreshNow();
+        break;
+      }
+      case "walk": startWalk(dev.id); break;
+      case "prev": walkTo(dev.id, (walking[dev.id] ?? 0) - 1); break;
+      case "again": identify(dev.id, currentWalkCmd(dev.id)); break;
+      case "next": walkNext(dev.id); break;
+      case "stop": stopWalk(dev.id); break;
+      case "trycmd": {
+        const cmd = cmdFromInput(box);
+        if (cmd) identify(dev.id, cmd);
+        break;
+      }
+      case "addcmd": {
+        const cmd = cmdFromInput(box);
+        if (!cmd) break;
+        if (devById(dev.id)?.leds.some((l) => l.cmd === cmd)) { toast(`LED ${cmd} is already in the list.`, true); break; }
+        const res = await post("/api/led-names", { device: dev.id, cmd, names: box.querySelector(".newnames").value });
+        res.ok ? toast(res.message) : toast(res.error, true);
+        if (res.ok) { pendingFocus = { dev: dev.id, cmd }; await refreshNow(); }
+        break;
+      }
+    }
+  });
+  return box;
+}
+
+function cmdFromInput(box) {
+  const n = parseInt(box.querySelector(".newcmd").value, 10);
+  if (!(n >= 1 && n <= 54)) { toast("Enter a command number between 1 and 54.", true); return null; }
+  return String(n).padStart(2, "0");
+}
+
+function devById(id) { return lastStatus?.devices.find((d) => d.id === id); }
+function setupBox(devId) { return document.querySelector(`.setup[data-dev="${CSS.escape(devId)}"]`); }
+function rowOf(devId, cmd) { return setupBox(devId)?.querySelector(`.row[data-cmd="${CSS.escape(cmd)}"]`); }
+
+async function identify(devId, cmd) {
+  if (!cmd) return;
+  const res = await post("/api/identify", { device: devId, cmd });
+  if (!res.ok) toast("Could not blink LED " + cmd + ": " + res.error, true);
+  else toast(`LED ${cmd} on ${devById(devId)?.name ?? devId} is blinking white now.`);
+}
+
+function markActive(devId, cmd) {
+  setupBox(devId)?.querySelectorAll(".row").forEach((r) => r.classList.toggle("active", r.dataset.cmd === cmd));
+}
+
+function focusRow(devId, cmd, doIdentify) {
+  const row = rowOf(devId, cmd);
+  if (!row) return;
+  markActive(devId, cmd);
+  row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  const inp = row.querySelector("input");
+  inp.focus({ preventScroll: true });
+  inp.select();
+  if (doIdentify) identify(devId, cmd);
+}
+
+async function saveRow(devId, row) {
+  const inp = row.querySelector("input");
+  if (inp.value.trim() === inp.dataset.orig) return true;
+  const res = await post("/api/led-names", { device: devId, cmd: row.dataset.cmd, names: inp.value });
+  if (!res.ok) { toast(res.error, true); inp.focus(); return false; }
+  toast(res.message);
+  return true;
+}
+
+// Walkthrough: blink the LEDs one after another, type a name, Enter for the next.
+function startWalk(devId) {
+  setupBox(devId)?.classList.add("walking");
+  walkTo(devId, 0);
+}
+function stopWalk(devId) {
+  delete walking[devId];
+  setupBox(devId)?.classList.remove("walking");
+  markActive(devId, null);
+}
+function currentWalkCmd(devId) {
+  const dev = devById(devId);
+  return dev?.leds[walking[devId] ?? 0]?.cmd;
+}
+function walkTo(devId, idx) {
+  const dev = devById(devId);
+  if (!dev) return;
+  if (idx < 0) idx = 0;
+  if (idx >= dev.leds.length) { stopWalk(devId); toast("Done – all LEDs on " + dev.name + " have been walked through."); return; }
+  walking[devId] = idx;
+  const pos = setupBox(devId)?.querySelector(".walkpos");
+  if (pos) pos.textContent = `LED ${idx + 1} of ${dev.leds.length} (command ${dev.leds[idx].cmd})`;
+  focusRow(devId, dev.leds[idx].cmd, true);
+}
+async function walkNext(devId) {
+  const row = rowOf(devId, currentWalkCmd(devId));
+  const inp = row?.querySelector("input");
+  const changed = inp && inp.value.trim() !== inp.dataset.orig;
+  if (changed && !(await saveRow(devId, row))) return;
+  const next = (walking[devId] ?? 0) + 1;
+  if (changed) {
+    // Saving rebuilds the card; continue the walkthrough once that is done.
+    pendingFocus = { dev: devId, walk: next };
+    await refreshNow();
+  } else {
+    walkTo(devId, next);
+  }
+}
+
+function applyPendingFocus() {
+  if (!pendingFocus) return;
+  const p = pendingFocus;
+  pendingFocus = null;
+  if (p.walk != null) {
+    setupBox(p.dev)?.classList.add("walking");
+    walkTo(p.dev, p.walk);
+  } else if (p.cmd) {
+    focusRow(p.dev, p.cmd, false);
+  }
+}
+
+function buildGrid(dev, leds, caption) {
+  const wrap = document.createElement("div");
+  if (caption) {
+    const c = document.createElement("div");
+    c.className = "legend";
+    c.textContent = caption;
+    wrap.appendChild(c);
+  }
+  const face = document.createElement("div");
+  face.className = "face grid";
+  for (const led of leds) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    const el = document.createElement("div");
+    el.className = "led";
+    const span = document.createElement("span");
+    span.textContent = primaryName(led.names);
+    cell.append(el, span);
+    face.appendChild(cell);
+    ledEls.set(dev.id + "/" + led.cmd, el);
+  }
+  wrap.appendChild(face);
+  return wrap;
+}
+
+// Tooltip with name, command, colour and what set the LED.
+document.addEventListener("mousemove", (e) => {
+  const tip = $("tip");
+  const el = e.target.closest && e.target.closest(".led");
+  if (!el || !el._led) { tip.style.display = "none"; return; }
+  const led = el._led;
+  const look = ledLook(led.rgb);
+  tip.innerHTML = "";
+  const add = (html) => { const d = document.createElement("div"); d.innerHTML = html; tip.appendChild(d); };
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  add(`<b>${esc(led.names.join(" · "))}</b>`);
+  add(`Command ${esc(led.cmd)} on ${esc(el._dev.name)}`);
+  if (led.rgb) {
+    add(`<span class="sw" style="background:${look.bg}"></span>${esc(led.color || "#" + led.rgb)} · ${levelName(led.rgb)}${led.blink ? " · blinking" : ""}`);
+    add(`Set by: ${esc(led.source)}`);
+  } else {
+    add("Not set by the bridge yet");
+  }
+  tip.style.display = "block";
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  const y = Math.min(e.clientY + 14, window.innerHeight - tip.offsetHeight - 8);
+  tip.style.left = x + "px";
+  tip.style.top = y + "px";
+});
+
+for (const ev of ["scroll", "mouseleave", "blur"]) {
+  window.addEventListener(ev, () => ($("tip").style.display = "none"), true);
+}
+
+function fmtDuration(s) {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h ? `${h} h ${m} min` : m ? `${m} min ${sec} s` : `${sec} s`;
+}
+
+function renderHeader(st) {
+  const sim = $("pSim");
+  sim.className = "pill " + (!st.sim.enabled ? "" : st.sim.connected ? "ok" : "warn");
+  const label = !st.sim.enabled ? "MSFS: off (API only)" : st.sim.connected ? "MSFS connected" : "Waiting for MSFS";
+  sim.innerHTML = `<span class="dot"></span><span></span>`;
+  sim.lastChild.textContent = label + (st.sim.connected && st.sim.aircraft ? " · " : "");
+  if (st.sim.connected && st.sim.aircraft) {
+    const b = document.createElement("b");
+    b.textContent = st.sim.aircraft;
+    sim.appendChild(b);
+  }
+  $("pRules").textContent = `Rules: ${st.n_rules}` + (st.dry_run ? " · dry run" : "");
+  $("pUptime").textContent = "Uptime: " + fmtDuration(st.uptime_s);
+  const t = new Date(st.config_loaded_at * 1000);
+  $("pCfg").textContent = "Config loaded " + t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  $("pCfg").title = st.config_path;
+  const a = st.autostart || { available: false };
+  const chk = $("chkAuto");
+  if (!chk.dataset.busy) chk.checked = !!a.enabled;
+  chk.disabled = !a.available;
+  $("pAuto").title = a.available
+    ? (a.stale ? "Set up for an exe in another folder: " + a.stale + " – tick to use this one" : "Start VirpilLedBridge.exe automatically when you sign in to Windows")
+    : (a.reason || "Not available");
+}
+
+$("chkAuto").addEventListener("change", async (e) => {
+  const chk = e.target;
+  chk.dataset.busy = "1";
+  const res = await post("/api/autostart", { enabled: chk.checked });
+  delete chk.dataset.busy;
+  if (res.ok) toast(res.message); else { toast(res.error, true); chk.checked = !chk.checked; }
+});
+
+let offline = false;
+async function pollStatus() {
+  try {
+    const r = await fetch("/api/status", { cache: "no-store" });
+    const st = await r.json();
+    // If the bridge has restarted (perhaps a newer version), reload the page so it does not run old code.
+    if (lastStatus && st.started && lastStatus.started && st.started !== lastStatus.started) {
+      location.reload();
+      return;
+    }
+    lastStatus = st;
+    renderHeader(st);
+    // Fetch the drawings on start and whenever layouts.json changes on disk.
+    if (st.layouts_mtime !== layoutsMtime) {
+      layoutsMtime = st.layouts_mtime;
+      await loadLayouts();
+    }
+    renderDevices(st);
+    setOffline(false);
+    if (st.config_loaded_at !== lastCfgLoaded) {
+      lastCfgLoaded = st.config_loaded_at;
+      loadConfigUI();
+    }
+  } catch {
+    setOffline(true);
+  } finally {
+    setTimeout(pollStatus, 600);
+  }
+}
+
+function setOffline(v) {
+  if (v === offline) return;
+  offline = v;
+  $("offline").style.display = v ? "block" : "none";
+  $("btnReload").disabled = v;
+  $("btnQuit").disabled = v;
+}
+
+// Log
+let lastLogId = 0;
+const logLines = [];
+async function pollLog() {
+  try {
+    const r = await fetch("/api/log?after=" + lastLogId, { cache: "no-store" });
+    const { lines } = await r.json();
+    if (lines.length) {
+      lastLogId = lines[lines.length - 1].id;
+      logLines.push(...lines);
+      if (logLines.length > 1500) logLines.splice(0, logLines.length - 1500);
+      renderLog();
+    }
+  } catch { /* shown by the status polling */ }
+  finally { setTimeout(pollLog, 1000); }
+}
+
+function renderLog() {
+  const box = $("lines");
+  const f = $("logFilter").value.trim().toLowerCase();
+  const shown = f ? logLines.filter((l) => l.text.toLowerCase().includes(f)) : logLines;
+  const frag = document.createDocumentFragment();
+  for (const l of shown.slice(-600)) {
+    const d = document.createElement("div");
+    d.className = l.level;
+    d.textContent = l.text;
+    frag.appendChild(d);
+  }
+  box.replaceChildren(frag);
+  $("logCount").textContent = f ? `${shown.length} of ${logLines.length}` : `${logLines.length} lines`;
+  if ($("logFollow").checked) box.scrollTop = box.scrollHeight;
+}
+$("logFilter").addEventListener("input", renderLog);
+
+// Buttons
+function toast(msg, isErr) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast" + (isErr ? " err" : "");
+  t.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => (t.style.display = "none"), isErr ? 9000 : 3500);
+}
+
+async function post(path, body) {
+  try {
+    const r = await fetch(path, {
+      method: "POST",
+      headers: { "X-Bridge-UI": "1", "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return await r.json();
+  } catch {
+    return { ok: false, error: "Could not reach the bridge." };
+  }
+}
+
+$("btnReload").addEventListener("click", async () => {
+  $("btnReload").disabled = true;
+  try {
+    const res = await post("/api/reload");
+    res.ok ? toast(res.message) : toast("Config was not loaded: " + res.error, true);
+  } catch {
+    toast("Could not reach the bridge.", true);
+  } finally {
+    $("btnReload").disabled = offline;
+  }
+});
+
+$("btnQuit").addEventListener("click", async () => {
+  if (!confirm("Quit the bridge? The LEDs are set to their base colours, and the MSFS rules stop until you start it again.")) return;
+  try {
+    await post("/api/quit");
+    toast("The bridge is shutting down …");
+  } catch { /* expected when it closes */ }
+});
+
+// =============================================================================================
+// Rules: list with live values, and the editor
+// =============================================================================================
+let cfgUI = null;          // {rules, colors: {name: hex}, custom_colors, mtime}
+let lastCfgLoaded = null;
+let live = { connected: false, values: {}, moving: {} };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function loadConfigUI() {
+  try {
+    cfgUI = await (await fetch("/api/config", { cache: "no-store" })).json();
+    renderRules();
+  } catch { /* shown by the status */ }
+}
+
+// ---- Colours ----
+const HUES = [["Red", "FF0000"], ["Green", "00FF00"], ["Blue", "0000FF"], ["Yellow", "FFFF00"], ["Cyan", "00FFFF"], ["Purple", "FF00FF"], ["White", "FFFFFF"]];
+const LEVELS = [["dim", "40"], ["medium", "80"], ["full", "FF"]];
+function hueAt(hex, lvl) { return [0, 2, 4].map((i) => (hex.slice(i, i + 2) === "FF" ? lvl : "00")).join(""); }
+function rgbName(hex) {
+  if (hex === "000000") return "off";
+  for (const [name, h] of HUES) for (const [lname, l] of LEVELS) if (hueAt(h, l) === hex) return `${name.toLowerCase()} · ${lname}`;
+  return "#" + hex;
+}
+
+// The colour a state gives: {hex, label, base}
+function stateColor(st, devId, ledName) {
+  if (st.rgb) {
+    const hex = st.rgb.replace("#", "").toUpperCase();
+    return { hex, label: rgbName(hex) };
+  }
+  const name = (st.color || "off").toLowerCase();
+  if (name === "startup") return { hex: null, base: true, label: "base colour" };
+  return { hex: cfgUI?.colors[name] ?? null, label: name };
+}
+function swatch(c) {
+  const s = document.createElement("span");
+  s.className = "sw" + (c.base ? " base" : "");
+  if (!c.base) {
+    const look = ledLook(c.hex || "000000");
+    s.style.background = look.bg;
+  }
+  return s;
+}
+
+// ---- Conditions (same rules as in the bridge) ----
+const OPS = [["moving", "moving"], ["stopped", "stopped"], ["==", "="], ["!=", "≠"], [">", ">"], [">=", "≥"], ["<", "<"], ["<=", "≤"], ["between", "between"], ["", "otherwise (always)"]];
+function parseCond(c) {
+  c = (c || "").trim();
+  if (!c) return { op: "" };
+  if (/^(moving|stopped)$/i.test(c)) return { op: c.toLowerCase() };
+  const m = c.match(/^(==|!=|>=|<=|>|<|between)\s+(-?[\d.]+)(?:\s+(-?[\d.]+))?$/);
+  return m ? { op: m[1], a: m[2], b: m[3] } : { op: "", bad: c };
+}
+function buildCond({ op, a, b }) {
+  if (!op || op === "moving" || op === "stopped") return op || "";
+  if (op === "between") return `between ${a} ${b}`;
+  return `${op} ${a}`;
+}
+function condText(c) {
+  const p = parseCond(c);
+  const label = OPS.find(([k]) => k === p.op)?.[1] ?? c;
+  if (!p.op || p.op === "moving" || p.op === "stopped") return label;
+  return p.op === "between" ? `between ${p.a} and ${p.b}` : `${label} ${p.a}`;
+}
+function checkCond(c, v, moving) {
+  const p = parseCond(c);
+  if (!p.op) return true;
+  if (p.op === "moving") return !!moving;
+  if (p.op === "stopped") return !moving;
+  if (v == null) return false;
+  const a = parseFloat(p.a), b = parseFloat(p.b);
+  switch (p.op) {
+    case "==": return Math.abs(v - a) < 1e-6;
+    case "!=": return Math.abs(v - a) >= 1e-6;
+    case ">": return v > a;
+    case ">=": return v >= a;
+    case "<": return v < a;
+    case "<=": return v <= a;
+    case "between": return v >= a && v <= b;
+  }
+  return false;
+}
+function activeStateIndex(rule) {
+  const v = live.values[rule.simvar];
+  if (v == null) return -1;
+  return rule.states.findIndex((s) => checkCond(s.if, v, live.moving[rule.simvar]));
+}
+function fmtVal(v) {
+  if (v == null) return "–";
+  return Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2);
+}
+
+// ---- The rule list ----
+function ledLabel(devId, ledName) {
+  const dev = devById(devId);
+  const led = dev?.leds.find((l) => l.names.includes(ledName));
+  return { dev, led, text: `${dev?.name ?? devId} · ${ledName}${led ? " (LED " + led.cmd + ")" : " – does not exist!"}` };
+}
+
+function renderRules() {
+  const box = $("rules");
+  if (!cfgUI) return;
+  const rules = cfgUI.rules;
+  $("rulesInfo").textContent = `${rules.length} rules · evaluated top to bottom`;
+  if (!rules.length) { box.innerHTML = `<div class="empty">No rules yet. Press “New rule”.</div>`; return; }
+  box.replaceChildren(...rules.map((rule, i) => {
+    const row = document.createElement("div");
+    row.className = "rule" + (rule.enabled === false ? " off" : "");
+    row.dataset.i = i;
+    const { text } = ledLabel(rule.device, rule.led);
+    row.innerHTML = `
+      <input type="checkbox" title="Turn the rule on or off" data-act="toggle" ${rule.enabled === false ? "" : "checked"}>
+      <div><div class="nm"></div><div class="sub"></div></div>
+      <div><div class="tgt"><span class="led-now"></span><span></span></div></div>
+      <div class="val" title="Current value from MSFS"></div>
+      <div class="acts">
+        <button class="small" type="button" data-act="edit">Edit</button>
+        <button class="small" type="button" data-act="up" title="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button class="small" type="button" data-act="down" title="Move down" ${i === rules.length - 1 ? "disabled" : ""}>↓</button>
+      </div>
+      <div class="chips"></div>`;
+    row.querySelector(".nm").textContent = rule.name || "(no name)";
+    let sub = rule.simvar;
+    if (rule.only_if) sub += `  ·  only when ${rule.only_if.simvar} ${condText(rule.only_if.if)}`;
+    if (rule.aircraft_contains) sub += `  ·  only aircraft with “${rule.aircraft_contains}”`;
+    row.querySelector(".sub").textContent = sub;
+    row.querySelector(".tgt span:last-child").textContent = text;
+    const chips = row.querySelector(".chips");
+    rule.states.forEach((st, k) => {
+      const c = stateColor(st, rule.device, rule.led);
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.dataset.k = k;
+      chip.append(swatch(c), document.createTextNode(`${condText(st.if)} → ${c.label}${st.blink ? ", blinking" : ""}`));
+      chips.appendChild(chip);
+    });
+    return row;
+  }));
+  updateRulesLive();
+}
+
+function updateRulesLive() {
+  if (!cfgUI) return;
+  document.querySelectorAll("#rules .rule").forEach((row) => {
+    const rule = cfgUI.rules[+row.dataset.i];
+    if (!rule) return;
+    const v = live.values[rule.simvar];
+    const val = row.querySelector(".val");
+    const oi = rule.only_if;
+    const oiV = oi ? live.values[oi.simvar] : null;
+    const resting = !!(oi && oiV != null && !checkCond(oi.if, oiV, false));
+    val.textContent = !live.connected ? "–" : resting ? "" : fmtVal(v);
+    if (resting || (live.connected && live.moving[rule.simvar])) {
+      const mv = document.createElement("span");
+      mv.className = "mv";
+      mv.textContent = resting ? "idle: condition not met" : "moving";
+      val.appendChild(mv);
+    }
+    const hit = rule.enabled === false || resting ? -1 : activeStateIndex(rule);
+    row.querySelectorAll(".chip").forEach((ch) => ch.classList.toggle("hit", +ch.dataset.k === hit));
+    const { dev, led } = ledLabel(rule.device, rule.led);
+    const now = row.querySelector(".led-now");
+    const look = ledLook(led?.rgb);
+    now.style.background = look ? look.bg : "transparent";
+    now.title = led?.source ? "Set by: " + led.source : "";
+  });
+}
+
+$("rules").addEventListener("click", async (e) => {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  const i = +el.closest(".rule").dataset.i;
+  const rules = structuredClone(cfgUI.rules);
+  switch (el.dataset.act) {
+    case "edit": return openRuleEditor(i);
+    case "toggle": rules[i].enabled = el.checked; if (el.checked) delete rules[i].enabled; break;
+    case "up": [rules[i - 1], rules[i]] = [rules[i], rules[i - 1]]; break;
+    case "down": [rules[i + 1], rules[i]] = [rules[i], rules[i + 1]]; break;
+    default: return;
+  }
+  await saveRules(rules);
+});
+
+async function saveRules(rules) {
+  const res = await post("/api/rules", { rules, mtime: cfgUI.mtime });
+  if (!res.ok) { toast(res.error, true); await loadConfigUI(); return false; }
+  toast(res.message);
+  await loadConfigUI();
+  return true;
+}
+
+async function pollLive() {
+  try {
+    const watch = editorWatch().join(",");
+    live = await (await fetch("/api/live?watch=" + encodeURIComponent(watch), { cache: "no-store" })).json();
+    updateRulesLive();
+    updateEditorLive();
+  } catch { /* shown by the status */ }
+  finally { setTimeout(pollLive, 500); }
+}
+
+// ---- Simvar picker ----
+function makeSimvarPicker(root, onChange) {
+  root.innerHTML = `<div class="row1"><input type="text" class="q" placeholder="Search, e.g. flaps, gear, canopy, fuel pressure" spellcheck="false">
+    <input type="number" class="idx" min="1" max="16" title="Index (engine, tank …)" hidden></div>
+    <div class="list"></div><div class="info"></div>`;
+  const q = root.querySelector(".q"), idx = root.querySelector(".idx"), list = root.querySelector(".list"), info = root.querySelector(".info");
+  let base = "", meta = null, timer = null, results = [], sel = -1;
+  const value = () => (base.endsWith(":index") ? base.replace(/:index$/, ":" + (idx.value || 1)) : base);
+  const show = () => {
+    info.innerHTML = meta ? `${esc(meta.desc)} · unit: ${esc(meta.unit)} · now: <span class="live">–</span>` : (base ? "Unknown simvar" : "");
+  };
+  async function search(text) {
+    const r = await (await fetch("/api/simvars?limit=40&q=" + encodeURIComponent(text))).json();
+    results = r.results;
+    sel = -1;
+    list.innerHTML = results.map((s, i) => `<div data-i="${i}"><b>${esc(s.name)}</b> <small>${esc(s.unit)}</small><i>${esc(s.desc)} · ${esc(s.category)}</i></div>`).join("") ||
+      `<div style="cursor:default"><i>No matches</i></div>`;
+    list.style.display = "block";
+  }
+  function choose(s) {
+    base = s.name; meta = s;
+    q.value = s.name;
+    idx.hidden = !base.endsWith(":index");
+    if (!idx.hidden && !idx.value) idx.value = 1;
+    list.style.display = "none";
+    show();
+    onChange(value());
+  }
+  q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => search(q.value), 180); });
+  q.addEventListener("focus", () => { if (q.value) search(q.value); });
+  q.addEventListener("keydown", (e) => {
+    const items = list.querySelectorAll("div[data-i]");
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      sel = Math.max(0, Math.min(items.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1)));
+      items.forEach((d, i) => d.classList.toggle("sel", i === sel));
+      items[sel]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (results[sel >= 0 ? sel : 0]) choose(results[sel >= 0 ? sel : 0]);
+    } else if (e.key === "Escape") { list.style.display = "none"; e.stopPropagation(); }
+  });
+  q.addEventListener("blur", () => setTimeout(() => {
+    list.style.display = "none";
+    if (q.value !== base) { q.value = base; }  // only choices from the list are accepted
+  }, 150));
+  list.addEventListener("mousedown", (e) => { const d = e.target.closest("div[data-i]"); if (d) choose(results[+d.dataset.i]); });
+  idx.addEventListener("input", () => onChange(value()));
+  return {
+    get value() { return value(); },
+    async set(name) {
+      const m = (name || "").match(/^(.+):(\d+)$/);
+      base = m ? m[1] + ":index" : (name || "");
+      idx.value = m ? m[2] : "";
+      idx.hidden = !base.endsWith(":index");
+      q.value = base;
+      meta = null;
+      if (base) {
+        const r = await (await fetch("/api/simvars?limit=40&q=" + encodeURIComponent(base))).json();
+        meta = r.results.find((s) => s.name === base) || null;
+      }
+      show();
+    },
+    setLive(v, moving) {
+      const l = info.querySelector(".live");
+      if (l) l.textContent = (live.connected ? fmtVal(v) : "MSFS not connected") + (moving ? " (moving)" : "");
+    },
+  };
+}
+
+// ---- Colour picker ----
+let palCb = null;
+function openPalette(anchor, cb) {
+  palCb = cb;
+  const pal = $("pal");
+  let html = `<div class="named"><button type="button" data-c="off"><span class="sw" style="background:var(--led-off)"></span>Off</button>
+    <button type="button" data-c="startup"><span class="sw base"></span>Base colour</button></div>
+    <div class="grid" style="margin-top:8px"><span></span>${LEVELS.map(([n]) => `<b style="text-align:center">${n}</b>`).join("")}`;
+  for (const [name, hex] of HUES) {
+    html += `<span>${name}</span>` + LEVELS.map(([, l]) => {
+      const h = hueAt(hex, l);
+      return `<button type="button" data-rgb="${h}" title="${name}, ${h}"><span class="sw" style="background:${ledLook(h).bg}"></span></button>`;
+    }).join("");
+  }
+  html += `</div>`;
+  if (cfgUI.custom_colors.length) {
+    html += `<h4>Custom colours from config</h4><div class="named">` + cfgUI.custom_colors.map((n) =>
+      `<button type="button" data-c="${esc(n)}"><span class="sw" style="background:${ledLook(cfgUI.colors[n]).bg}"></span>${esc(n)}</button>`).join("") + `</div>`;
+  }
+  pal.innerHTML = html;
+  // An open <dialog> sits in its own layer above everything else; the picker must be inside it to show.
+  const dlg = anchor.closest("dialog");
+  (dlg || document.body).appendChild(pal);
+  pal.style.display = "block";
+  const r = anchor.getBoundingClientRect();
+  const h = pal.offsetHeight, w = pal.offsetWidth;
+  pal.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+  const below = r.bottom + 4, above = r.top - h - 4;
+  pal.style.top = Math.max(8, below + h + 8 > window.innerHeight && above > 8 ? above : Math.min(below, window.innerHeight - h - 8)) + "px";
+}
+$("pal").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b || !palCb) return;
+  palCb(b.dataset.rgb ? { rgb: b.dataset.rgb } : { color: b.dataset.c });
+  $("pal").style.display = "none";
+});
+document.addEventListener("mousedown", (e) => {
+  if (!e.target.closest("#pal") && !e.target.closest(".cbtn")) $("pal").style.display = "none";
+});
+
+function colorButton(get, set) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "small cbtn";
+  const paint = () => {
+    const c = stateColor(get());
+    b.replaceChildren(swatch(c), document.createTextNode(c.label));
+  };
+  b.addEventListener("click", () => openPalette(b, (c) => { set(c); paint(); }));
+  paint();
+  return b;
+}
+
+// ---- Condition field ----
+function condEditor(root, cond, onChange, allowMoving = true) {
+  const p = parseCond(cond);
+  root.innerHTML = "";
+  const sel = document.createElement("select");
+  sel.innerHTML = OPS.filter(([k]) => allowMoving || (k !== "moving" && k !== "stopped" && k !== ""))
+    .map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+  sel.value = p.op;
+  const a = Object.assign(document.createElement("input"), { type: "number", step: "any", value: p.a ?? "" });
+  const and = Object.assign(document.createElement("span"), { textContent: "and" });
+  const b = Object.assign(document.createElement("input"), { type: "number", step: "any", value: p.b ?? "" });
+  const vals = document.createElement("span");
+  vals.className = "vals";
+  vals.append(a, and, b);
+  const sync = () => {
+    const needs = !["", "moving", "stopped"].includes(sel.value);
+    a.hidden = !needs;
+    and.hidden = b.hidden = sel.value !== "between";
+    onChange(buildCond({ op: sel.value, a: a.value || "0", b: b.value || "0" }));
+  };
+  sel.addEventListener("change", sync);
+  a.addEventListener("input", sync);
+  b.addEventListener("input", sync);
+  root.append(sel, vals);
+  const needs = !["", "moving", "stopped"].includes(p.op);
+  a.hidden = !needs;
+  and.hidden = b.hidden = p.op !== "between";
+  return { sel, vals };
+}
+
+// ---- The editor ----
+let edit = null; // {index, rule, picker, oiPicker}
+
+function editorWatch() {
+  if (!edit) return [];
+  return [edit.rule.simvar, edit.rule.only_if?.simvar].filter(Boolean);
+}
+
+function fillLeds(devId, current) {
+  const dev = devById(devId);
+  const sel = $("rLed");
+  sel.innerHTML = "";
+  for (const led of dev?.leds ?? []) {
+    // One line per physical LED with its main name; if the rule uses another of its names, that is shown instead.
+    const name = current && led.names.includes(current) ? current : primaryName(led.names);
+    const others = led.names.filter((n) => n !== name);
+    sel.appendChild(new Option(`${name}  (LED ${led.cmd})${others.length ? "  · also " + others.join(", ") : ""}`, name));
+  }
+  if (current && ![...sel.options].some((o) => o.value === current)) sel.appendChild(new Option(current + " – does not exist", current));
+  sel.value = current || primaryName(dev?.leds[0]?.names ?? [""]);
+}
+
+async function openRuleEditor(index) {
+  const isNew = index == null;
+  const firstDev = lastStatus.devices[0];
+  const rule = isNew
+    ? { name: "", simvar: "", device: firstDev.id, led: primaryName(firstDev.leds[0].names),
+        states: [{ if: "== 1", color: "green" }, { color: "startup" }] }
+    : structuredClone(cfgUI.rules[index]);
+  edit = { index, rule };
+  $("ruleTitle").textContent = isNew ? "New rule" : "Edit rule";
+  $("rDelete").hidden = isNew;
+  $("rErr").textContent = "";
+  $("rName").value = rule.name || "";
+  $("rEnabled").checked = rule.enabled !== false;
+  $("rDevice").innerHTML = lastStatus.devices.map((d) => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join("");
+  $("rDevice").value = rule.device;
+  fillLeds(rule.device, rule.led);
+  edit.picker = makeSimvarPicker($("rSimvar"), (v) => { edit.rule.simvar = v; });
+  await edit.picker.set(rule.simvar);
+  $("rAircraft").value = rule.aircraft_contains || "";
+  // Extra condition
+  const oi = rule.only_if;
+  $("rOiOn").checked = !!oi;
+  $("rOiBody").hidden = !oi;
+  edit.oi = { simvar: oi?.simvar || "", if: oi?.if || "== 1", otherwise: rule.otherwise ?? "startup" };
+  edit.oiPicker = makeSimvarPicker($("rOiSimvar"), (v) => { edit.oi.simvar = v; if (edit.rule.only_if) edit.rule.only_if.simvar = v; });
+  await edit.oiPicker.set(edit.oi.simvar);
+  condEditor($("rOiCond"), edit.oi.if, (c) => { edit.oi.if = c; }, false);
+  $("rOiColor").replaceChildren(colorButton(
+    () => (/^[0-9A-F]{6}$/i.test(edit.oi.otherwise) ? { rgb: edit.oi.otherwise } : { color: edit.oi.otherwise }),
+    (c) => { edit.oi.otherwise = c.rgb ?? c.color ?? "off"; }));
+  $("rMore").open = !!(oi || rule.aircraft_contains);
+  renderStates();
+  $("ruleDlg").showModal();
+  if (isNew) $("rName").focus();
+}
+
+function renderStates() {
+  const box = $("rStates");
+  const states = edit.rule.states;
+  box.replaceChildren(...states.map((st, k) => {
+    const row = document.createElement("div");
+    row.className = "st";
+    row.dataset.k = k;
+    const condWrap = document.createElement("div");
+    condWrap.style.display = "flex"; condWrap.style.gap = "6px"; condWrap.style.flexWrap = "wrap";
+    condEditor(condWrap, st.if, (c) => { if (c) st.if = c; else delete st.if; });
+    const color = colorButton(() => st, (c) => { delete st.color; delete st.rgb; Object.assign(st, c); });
+    const blink = document.createElement("label");
+    blink.innerHTML = `<input type="checkbox" ${st.blink ? "checked" : ""}> blink`;
+    blink.style.whiteSpace = "nowrap";
+    blink.querySelector("input").addEventListener("change", (e) => { if (e.target.checked) st.blink = true; else delete st.blink; });
+    const tools = document.createElement("span");
+    tools.style.whiteSpace = "nowrap";
+    tools.innerHTML = `<button class="small" type="button" data-a="up" ${k === 0 ? "disabled" : ""}>↑</button>
+      <button class="small" type="button" data-a="down" ${k === states.length - 1 ? "disabled" : ""}>↓</button>
+      <button class="small" type="button" data-a="del" title="Remove the state">✕</button>`;
+    tools.addEventListener("click", (e) => {
+      const a = e.target.closest("button")?.dataset.a;
+      if (a === "up") [states[k - 1], states[k]] = [states[k], states[k - 1]];
+      if (a === "down") [states[k + 1], states[k]] = [states[k], states[k + 1]];
+      if (a === "del") states.splice(k, 1);
+      if (a) renderStates();
+    });
+    row.append(condWrap, color, blink, tools);
+    return row;
+  }));
+  updateEditorLive();
+}
+
+function updateEditorLive() {
+  if (!edit || !$("ruleDlg").open) return;
+  const r = edit.rule;
+  edit.picker?.setLive(live.values[r.simvar], live.moving[r.simvar]);
+  if ($("rOiOn").checked) edit.oiPicker?.setLive(live.values[edit.oi.simvar], false);
+  const v = live.values[r.simvar];
+  const hit = v == null ? -1 : r.states.findIndex((s) => checkCond(s.if, v, live.moving[r.simvar]));
+  $("rStates").querySelectorAll(".st").forEach((row) => row.classList.toggle("hit", +row.dataset.k === hit));
+}
+
+$("rDevice").addEventListener("change", () => { edit.rule.device = $("rDevice").value; fillLeds(edit.rule.device); edit.rule.led = $("rLed").value; });
+$("rLed").addEventListener("change", () => { edit.rule.led = $("rLed").value; });
+$("rAddState").addEventListener("click", () => {
+  // A new state goes before any “otherwise”, which should stay last.
+  const states = edit.rule.states;
+  const lastIsElse = states.length && !states[states.length - 1].if;
+  states.splice(lastIsElse ? states.length - 1 : states.length, 0, { if: "== 1", color: "green" });
+  renderStates();
+});
+$("rOiOn").addEventListener("change", () => { $("rOiBody").hidden = !$("rOiOn").checked; });
+$("rCancel").addEventListener("click", () => $("ruleDlg").close());
+$("ruleDlg").addEventListener("close", () => { edit = null; $("pal").style.display = "none"; });
+
+$("rDelete").addEventListener("click", async () => {
+  if (!confirm(`Delete the rule “${edit.rule.name}”?`)) return;
+  const rules = structuredClone(cfgUI.rules);
+  rules.splice(edit.index, 1);
+  if (await saveRules(rules)) $("ruleDlg").close();
+});
+
+$("rSave").addEventListener("click", async () => {
+  const r = edit.rule;
+  r.name = $("rName").value.trim();
+  r.device = $("rDevice").value;
+  r.led = $("rLed").value;
+  r.simvar = edit.picker.value;
+  if ($("rEnabled").checked) delete r.enabled; else r.enabled = false;
+  const ac = $("rAircraft").value.trim();
+  if (ac) r.aircraft_contains = ac; else delete r.aircraft_contains;
+  if ($("rOiOn").checked) {
+    r.only_if = { simvar: edit.oiPicker.value, if: edit.oi.if };
+    if (edit.oi.otherwise && edit.oi.otherwise !== "startup") r.otherwise = edit.oi.otherwise; else delete r.otherwise;
+  } else {
+    delete r.only_if;
+    delete r.otherwise;
+  }
+  const err = !r.name ? "Give the rule a name." : !r.simvar ? "Choose a simvar from the list." :
+    ($("rOiOn").checked && !r.only_if.simvar) ? "Choose a simvar for the condition, or turn it off." :
+    !r.states.length ? "The rule needs at least one state." : "";
+  if (err) { $("rErr").textContent = err; return; }
+  // Key order as in the hand-written file
+  const ordered = {};
+  for (const k of ["name", "enabled", "simvar", "only_if", "otherwise", "aircraft_contains", "device", "led", "states"]) if (k in r) ordered[k] = r[k];
+  for (const k of Object.keys(r)) if (!(k in ordered)) ordered[k] = r[k];
+  const rules = structuredClone(cfgUI.rules);
+  if (edit.index == null) rules.push(ordered); else rules[edit.index] = ordered;
+  const res = await post("/api/rules", { rules, mtime: cfgUI.mtime });
+  if (!res.ok) { $("rErr").textContent = res.error; return; }
+  toast(res.message);
+  $("ruleDlg").close();
+  await loadConfigUI();
+});
+
+$("btnNewRule").addEventListener("click", () => openRuleEditor(null));
+
+pollStatus();
+pollLog();
+pollLive();
+</script>
+</body>
+</html>

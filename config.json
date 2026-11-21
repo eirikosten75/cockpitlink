@@ -1,0 +1,295 @@
+{
+  "_info": "Devices and LED commands read on 2026-11-21 from the VPC profiles in %LOCALAPPDATA%\\VIRPIL\\PROFILES and the connected USB devices. LED command = the Tag value in the OUTPUT section of the profile (05-24 = LEDs on the board). The names led01, led02 ... follow the numbering in VPC Configuration Tool. On cp2 (Control Panel #2) the aliases were tested against the panel on 2026-11-21: b1-b10 = buttons B1-B10, gear_left/gear_nose/gear_right = the three round LEDs below the gear symbol, ind_* = the small indicators. All devices were mapped against the real panels with photos on 2026-11-21: cp1 and cp1_l (Control Panel #1, left and right) b1-b12 = buttons B1-B12; sharka b1-b8, rst, dir = the buttons with those labels; throttle (MongoosT-50CM3) b1-b6 = buttons B1-B6. Use Setup in the control panel to find or rename LEDs. Brightness: Virpil only has the levels 0, 64, 128 and 255 per colour channel; other values are rounded. The indicators use 128 (medium) or 64 (dim); gearred (gear moving) uses 255 (full). 'startup' is the base colour each LED shows when no rule or API call says otherwise; on_disconnect_color and on_exit = 'startup' make the LEDs return to it when MSFS closes or the bridge quits.",
+  "vpc_led_control": {
+    "exe": "C:\\Program Files (x86)\\VPC Software Suite\\tools\\VPC_LED_Control.exe",
+    "command_template": "\"{exe}\" {vid} {pid} {cmd} {r} {g} {b}"
+  },
+  "api": {
+    "host": "127.0.0.1",
+    "http_port": 8765,
+    "udp_port": 8766
+  },
+  "sim_poll_ms": 200,
+  "blink_interval_ms": 500,
+  "on_disconnect_color": "startup",
+  "on_exit": "startup",
+  "startup": {
+    "cp2": {
+      "default": "dimgreen",
+      "leds": {
+        "b1": "dimyellow",
+        "b2": "dimyellow",
+        "b5": "dimyellow",
+        "b6": "dimyellow",
+        "b7": "dimyellow",
+        "b8": "dimyellow",
+        "b9": "dimyellow",
+        "b10": "dimyellow",
+        "ind_center": "off"
+      }
+    },
+    "cp1": "dimyellow",
+    "cp1_l": "dimyellow",
+    "sharka": "dimyellow",
+    "throttle": "dimyellow"
+  },
+  "colors": {
+    "dimyellow": [64, 64, 0],
+    "navgreen": [0, 128, 0],
+    "geargreen": [0, 64, 0],
+    "gearupblue": [0, 0, 64],
+    "gearred": [255, 0, 0],
+    "lightwhite": [128, 128, 128],
+    "brakered": [128, 0, 0],
+    "apgreen": [0, 128, 0]
+  },
+  "devices": {
+    "cp2": {
+      "name": "VPC Panel #2",
+      "vid": "3344",
+      "pid": "025B",
+      "leds": {
+        "led01": "05",
+        "led02": "06",
+        "led03": "07",
+        "led04": "08",
+        "led05": "09",
+        "led06": "10",
+        "led07": "11",
+        "led08": "12",
+        "led09": "13",
+        "led10": "14",
+        "led11": "15",
+        "led12": "16",
+        "led13": "17",
+        "led14": "18",
+        "led15": "19",
+        "led16": "20",
+        "led17": "21",
+        "b1": "06",
+        "b2": "05",
+        "b3": "08",
+        "b4": "07",
+        "ind_top": "09",
+        "ind_center": "10",
+        "ind_bottom_left": "11",
+        "gear_left": "12",
+        "gear_nose": "13",
+        "gear_right": "14",
+        "ind_bottom_right": "15",
+        "b5": "21",
+        "b6": "18",
+        "b7": "20",
+        "b8": "17",
+        "b9": "19",
+        "b10": "16"
+      }
+    },
+    "cp1": {
+      "name": "VPC Panel #1",
+      "vid": "3344",
+      "pid": "0259",
+      "leds": {
+        "led01": "05",
+        "b10": "05",
+        "led02": "06",
+        "b11": "06",
+        "led03": "07",
+        "b12": "07",
+        "led04": "08",
+        "b7": "08",
+        "led05": "09",
+        "b8": "09",
+        "led06": "10",
+        "b9": "10",
+        "led07": "11",
+        "b6": "11",
+        "led08": "12",
+        "b4": "12",
+        "led09": "13",
+        "b2": "13",
+        "led10": "14",
+        "b5": "14",
+        "led11": "15",
+        "b3": "15",
+        "led12": "16",
+        "b1": "16"
+      }
+    },
+    "cp1_l": {
+      "name": "L-VPC Panel #1",
+      "vid": "3344",
+      "pid": "8259",
+      "leds": {
+        "led01": "05",
+        "b10": "05",
+        "led02": "06",
+        "b11": "06",
+        "led03": "07",
+        "b12": "07",
+        "led04": "08",
+        "b7": "08",
+        "led05": "09",
+        "b8": "09",
+        "led06": "10",
+        "b9": "10",
+        "led07": "11",
+        "b6": "11",
+        "led08": "12",
+        "b4": "12",
+        "led09": "13",
+        "b2": "13",
+        "led10": "14",
+        "b5": "14",
+        "led11": "15",
+        "b3": "15",
+        "led12": "16",
+        "b1": "16"
+      }
+    },
+    "sharka": {
+      "name": "VPC SharKa-50 Panel",
+      "vid": "3344",
+      "pid": "025D",
+      "leds": {
+        "led01": "05",
+        "rst": "05",
+        "led02": "06",
+        "b5": "06",
+        "led03": "07",
+        "b6": "07",
+        "led04": "08",
+        "dir": "08",
+        "led05": "09",
+        "b8": "09",
+        "led06": "10",
+        "b7": "10",
+        "led07": "11",
+        "b3": "11",
+        "led08": "12",
+        "b1": "12",
+        "led09": "13",
+        "b2": "13",
+        "led10": "14",
+        "b4": "14"
+      }
+    },
+    "throttle": {
+      "name": "VPC MongoosT-50CM3 (throttle)",
+      "vid": "3344",
+      "pid": "0198",
+      "leds": {
+        "led01": "05",
+        "led02": "06",
+        "led03": "07",
+        "b3": "07",
+        "led04": "08",
+        "b4": "08",
+        "led05": "09",
+        "b5": "09",
+        "led06": "10",
+        "b6": "10",
+        "b1": "05",
+        "b2": "06"
+      }
+    }
+  },
+  "rules": [
+    {
+      "name": "Left gear",
+      "simvar": "GEAR_LEFT_POSITION",
+      "device": "cp2",
+      "led": "gear_left",
+      "states": [
+        { "if": ">= 0.99", "color": "geargreen" },
+        { "if": "<= 0.01", "color": "gearupblue" },
+        { "color": "gearred", "blink": true }
+      ]
+    },
+    {
+      "name": "Nose gear",
+      "simvar": "GEAR_CENTER_POSITION",
+      "only_if": { "simvar": "IS_TAIL_DRAGGER", "if": "== 0" },
+      "otherwise": "off",
+      "device": "cp2",
+      "led": "gear_nose",
+      "states": [
+        { "if": ">= 0.99", "color": "geargreen" },
+        { "if": "<= 0.01", "color": "gearupblue" },
+        { "color": "gearred", "blink": true }
+      ]
+    },
+    {
+      "name": "Right gear",
+      "simvar": "GEAR_RIGHT_POSITION",
+      "device": "cp2",
+      "led": "gear_right",
+      "states": [
+        { "if": ">= 0.99", "color": "geargreen" },
+        { "if": "<= 0.01", "color": "gearupblue" },
+        { "color": "gearred", "blink": true }
+      ]
+    },
+    {
+      "name": "Parking brake",
+      "simvar": "BRAKE_PARKING_POSITION",
+      "device": "cp2",
+      "led": "b1",
+      "states": [{ "if": "> 0", "color": "brakered" }, { "color": "startup" }]
+    },
+    {
+      "name": "Autopilot",
+      "simvar": "AUTOPILOT_MASTER",
+      "device": "throttle",
+      "led": "b1",
+      "states": [{ "if": "== 1", "color": "apgreen" }, { "color": "startup" }]
+    },
+    {
+      "name": "Nav lights",
+      "simvar": "LIGHT_NAV_ON",
+      "device": "cp2",
+      "led": "b2",
+      "states": [{ "if": "== 1", "color": "navgreen" }, { "color": "startup" }]
+    },
+    {
+      "name": "Canopy",
+      "simvar": "CANOPY_OPEN",
+      "device": "cp2",
+      "led": "ind_top",
+      "states": [
+        { "if": "moving", "color": "gearred", "blink": true },
+        { "if": "<= 0.01", "color": "geargreen" },
+        { "color": "brakered" }
+      ]
+    },
+    {
+      "name": "Fuel pressure",
+      "simvar": "GENERAL_ENG_FUEL_PRESSURE:1",
+      "device": "cp2",
+      "led": "ind_center",
+      "states": [{ "if": "< 8", "color": "brakered" }, { "color": "geargreen" }]
+    },
+    {
+      "name": "Left flaps",
+      "simvar": "TRAILING_EDGE_FLAPS_LEFT_PERCENT",
+      "device": "cp2",
+      "led": "ind_bottom_left",
+      "states": [
+        { "if": "moving", "color": "gearred", "blink": true },
+        { "if": "<= 0.01", "color": "off" },
+        { "color": "geargreen" }
+      ]
+    },
+    {
+      "name": "Right flaps",
+      "simvar": "TRAILING_EDGE_FLAPS_RIGHT_PERCENT",
+      "device": "cp2",
+      "led": "ind_bottom_right",
+      "states": [
+        { "if": "moving", "color": "gearred", "blink": true },
+        { "if": "<= 0.01", "color": "off" },
+        { "color": "geargreen" }
+      ]
+    }
+  ]
+}
