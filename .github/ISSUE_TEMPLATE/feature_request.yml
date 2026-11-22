@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest an idea, a new panel drawing or support for something new
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like?
+      description: Describe what you want to see on your panels, and in which situation.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it useful?
+      description: For example the aircraft, the procedure or the device it is for.
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything else?
+      description: Workarounds you use today, simvar/LVAR names, photos of a panel, links …

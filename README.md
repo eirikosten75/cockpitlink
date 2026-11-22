@@ -211,6 +211,12 @@ rebuild.
 - **Antivirus warning about the exe:** exes built with PyInstaller are sometimes flagged by mistake. Add an exception
   for the folder, or run from Python instead.
 
+## Contributing
+
+Bug reports, panel drawings, rules and code are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Please report security problems privately, as described in
+[SECURITY.md](SECURITY.md).
+
 ## Licence
 
 Virpil LED Bridge is free software, released under the **GNU General Public License v3.0** – see [LICENSE](LICENSE).

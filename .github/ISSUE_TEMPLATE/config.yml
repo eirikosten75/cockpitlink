@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Troubleshooting and documentation
+    url: https://github.com/eirikosten75/virpil-led-bridge#troubleshooting
+    about: Common problems and how to set up devices, rules and LVARs.
+  - name: Report a security problem
+    url: https://github.com/eirikosten75/virpil-led-bridge/security
+    about: Please report security problems privately, not as an issue.
