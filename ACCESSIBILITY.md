@@ -26,18 +26,26 @@ the LEDs show (gear, flaps, canopy …) is still shown in the cockpit in MSFS.
 - **Text alongside colour in the control panel.** Rules show their states as text (“≥ 0.99 → geargreen”), and colours
   have names, not just swatches.
 - **Light and dark mode** follow your Windows setting.
-- **Keyboard:** the rule editor is a standard dialog (Esc closes it); the simvar search can be used with the arrow keys
-  and Enter; LED names can be typed and saved with Enter.
+- **Keyboard:** every LED in the panel drawings can be reached with Tab; its names, colour and rule are shown when it
+  gets focus, just like on mouse hover. In *Setup*, Enter or Space on an LED makes it blink on the real panel and jumps
+  to its name field. The rule editor is a standard dialog (Esc closes it); the simvar search can be used with the
+  arrow keys and Enter; LED names can be typed and saved with Enter.
+- **Screen readers:** each LED is announced with its names, colour, brightness, whether it blinks and which rule set
+  it, and the description is kept up to date. Icon buttons (↑ ↓ ✕), the rule switches, search fields and setup fields
+  have labels; messages after saving are announced; the panels' decorative outlines are hidden from screen readers.
+- **Reduced motion:** if *Animation effects* is turned off in Windows (or *reduce motion* in your browser), LEDs in the
+  drawing do not blink – blinking LEDs get a dashed ring instead. This only affects the control panel, not the real
+  LEDs.
 - **Everything can also be done without the control panel:** `config.json` and `layouts.json` are plain text files
   that can be edited in any editor, and the LEDs can be driven from scripts through the API (see README).
 
 ## Known limitations
 
-- **The panel drawings are mostly visual.** An LED's names, colour and rule are shown in a tooltip when you hover with
-  the mouse; the drawings are not yet reachable with the keyboard or labelled for screen readers.
-- **Few ARIA labels.** Some buttons and controls in the control panel rely on their visual position and may be read
-  out unclearly by screen readers.
-- **Blinking:** blinking LEDs in the drawing blink once a second and do not yet respect the *reduce motion* setting.
+- **Tab order in the drawings** follows the LED command numbers, not always the position on the panel.
+- **The colour picker** is a grid of colour swatches; each has a name (e.g. “green, 008000”), but it works best with a
+  mouse.
+- **Not tested with every screen reader.** The labels follow web standards, but have not been checked with NVDA,
+  JAWS or Narrator – reports are welcome.
 - **The physical LEDs** only have the colours and four brightness levels the Virpil hardware supports.
 - **English only.** The program and documentation are in English.
 

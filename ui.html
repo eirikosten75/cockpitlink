@@ -108,6 +108,15 @@
   .led.unknown { background: transparent; border: 1px dashed #6b7280; }
   .led.blink { animation: blink 1s steps(1, end) infinite; }
   @keyframes blink { 50% { background: var(--led-off); box-shadow: none; } }
+  .led:focus { outline: none; }
+  .led:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; z-index: 4; }
+  /* Reduce motion: no blinking in the drawing – a dashed ring marks blinking LEDs instead. */
+  @media (prefers-reduced-motion: reduce) {
+    .led.blink { animation: none; outline: 2px dashed currentColor; outline-offset: 3px; color: var(--panel-print); }
+    .led.blink:focus-visible { outline: 3px solid var(--accent); }
+  }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+             clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
   /* Grid for devices without a drawing */
   .face.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; padding: 14px; }
@@ -248,7 +257,7 @@
   </div>
 </header>
 
-<div class="offline" id="offline">Cannot reach the bridge. Has it been closed? Start VirpilLedBridge.exe and reload this page.</div>
+<div class="offline" id="offline" role="alert">Cannot reach the bridge. Has it been closed? Start VirpilLedBridge.exe and reload this page.</div>
 
 <main>
   <section>
@@ -261,14 +270,14 @@
   <aside class="card log">
     <h2>Log <small id="logCount"></small></h2>
     <div class="tools">
-      <input type="search" id="logFilter" placeholder="Filter, e.g. Flaps or ERROR">
+      <input type="search" id="logFilter" placeholder="Filter, e.g. Flaps or ERROR" aria-label="Filter the log">
       <label><input type="checkbox" id="logFollow" checked> Follow</label>
     </div>
     <div class="lines" id="lines"></div>
   </aside>
 </main>
 
-<dialog id="ruleDlg">
+<dialog id="ruleDlg" aria-labelledby="ruleTitle">
   <form method="dialog" id="ruleForm" autocomplete="off">
     <h3 id="ruleTitle">Edit rule</h3>
     <div class="two">
@@ -307,10 +316,10 @@
     </div>
   </form>
 </dialog>
-<div class="pal" id="pal"></div>
+<div class="pal" id="pal" role="dialog" aria-label="Choose a colour"></div>
 
-<div class="tip" id="tip"></div>
-<div class="toast" id="toast"></div>
+<div class="tip" id="tip" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 "use strict";
@@ -387,6 +396,8 @@ function renderDevices(st) {
       el.style.boxShadow = look ? look.glow : "none";
       el._led = led;
       el._dev = dev;
+      const desc = ledDescription(dev, led);
+      if (el.getAttribute("aria-label") !== desc) el.setAttribute("aria-label", desc);
     }
   }
   if (rebuilt) applyPendingFocus();
@@ -415,10 +426,13 @@ function buildDevice(dev) {
   const face = document.createElement("div");
   if (layout) {
     face.className = "face drawn";
+    face.setAttribute("role", "group");
+    face.setAttribute("aria-label", `LEDs on ${dev.name}`);
     if (layout.aspect) face.style.aspectRatio = layout.aspect;
     for (const d of layout.deco || []) {
       const el = document.createElement("div");
       el.className = "deco";
+      el.setAttribute("aria-hidden", "true");
       Object.assign(el.style, { left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%" });
       el.textContent = d.text;
       face.appendChild(el);
@@ -428,8 +442,7 @@ function buildDevice(dev) {
       const key = led.names.find((n) => layout.leds[n]);
       if (!key) { unplaced.push(led); continue; }
       const [x, y, shape, label, labelPos] = layout.leds[key];
-      const el = document.createElement("div");
-      el.className = "led " + shape;
+      const el = makeLedEl("led " + shape, dev, led);
       Object.assign(el.style, { left: x + "%", top: y + "%" });
       if (layout.btn && shape === "btn") el.style.width = layout.btn + "%";
       face.appendChild(el);
@@ -438,6 +451,7 @@ function buildDevice(dev) {
         // The label hangs on the edge of its own button, so it can never end up under a neighbour.
         const l = document.createElement("span");
         l.className = "lbl" + (labelPos === "below" ? " below" : "");
+        l.setAttribute("aria-hidden", "true");
         l.textContent = label;
         el.appendChild(l);
       }
@@ -461,7 +475,10 @@ function buildDevice(dev) {
     setup.hidden = !v;
     setupBtn.classList.toggle("on", v);
     setupBtn.textContent = v ? "Close setup" : "Setup";
-    card.querySelectorAll(".face .led").forEach((el) => el.classList.toggle("pick", v));
+    card.querySelectorAll(".face .led").forEach((el) => {
+      el.classList.toggle("pick", v);
+      el.setAttribute("role", v ? "button" : "img");
+    });
     if (!v) stopWalk(dev.id);
   };
   setupBtn.addEventListener("click", () => open(!setupOpen.has(dev.id)));
@@ -471,6 +488,14 @@ function buildDevice(dev) {
   card.addEventListener("click", (e) => {
     const el = e.target.closest(".face .led");
     if (!el || !el._led || !setupOpen.has(dev.id)) return;
+    focusRow(dev.id, el._led.cmd, true);
+  });
+  // The same with the keyboard: Enter or Space on a focused LED.
+  card.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const el = e.target.closest(".face .led");
+    if (!el || !el._led || !setupOpen.has(dev.id)) return;
+    e.preventDefault();
     focusRow(dev.id, el._led.cmd, true);
   });
   return card;
@@ -502,9 +527,9 @@ function buildSetup(dev) {
     <div class="rows"></div>
     <div class="bar">
       <span class="hint" style="margin:0">Missing an LED? Try command number</span>
-      <input type="number" class="newcmd" min="1" max="54" placeholder="05">
-      <button class="small" type="button" data-act="trycmd">Show</button>
-      <input type="text" class="newnames" placeholder="name, e.g. b3">
+      <input type="number" class="newcmd" min="1" max="54" placeholder="05" aria-label="Command number to try">
+      <button class="small" type="button" data-act="trycmd" aria-label="Show this command number on the panel">Show</button>
+      <input type="text" class="newnames" placeholder="name, e.g. b3" aria-label="Names for the new LED">
       <button class="small" type="button" data-act="addcmd">Add</button>
     </div>
     <div class="bar walkbar">
@@ -525,6 +550,10 @@ function buildSetup(dev) {
       <button class="small" type="button" data-act="show">Show</button>
       <button class="small" type="button" data-act="save">Save</button><div class="uses"></div>`;
     row.querySelector("code").textContent = led.cmd;
+    row.querySelector(".sw").setAttribute("aria-hidden", "true");
+    row.querySelector("input").setAttribute("aria-label", `Names for LED ${led.cmd}`);
+    row.querySelector('[data-act="show"]').setAttribute("aria-label", `Show LED ${led.cmd} on the panel`);
+    row.querySelector('[data-act="save"]').setAttribute("aria-label", `Save names for LED ${led.cmd}`);
     const inp = row.querySelector("input");
     inp.value = orig;
     inp.dataset.orig = orig;
@@ -680,12 +709,14 @@ function buildGrid(dev, leds, caption) {
   }
   const face = document.createElement("div");
   face.className = "face grid";
+  face.setAttribute("role", "group");
+  face.setAttribute("aria-label", `LEDs on ${dev.name}`);
   for (const led of leds) {
     const cell = document.createElement("div");
     cell.className = "cell";
-    const el = document.createElement("div");
-    el.className = "led";
+    const el = makeLedEl("led", dev, led);
     const span = document.createElement("span");
+    span.setAttribute("aria-hidden", "true");
     span.textContent = primaryName(led.names);
     cell.append(el, span);
     face.appendChild(cell);
@@ -695,11 +726,47 @@ function buildGrid(dev, leds, caption) {
   return wrap;
 }
 
-// Tooltip with name, command, colour and what set the LED.
+// An LED in a drawing or grid: focusable with Tab, and described for screen readers.
+function makeLedEl(cls, dev, led) {
+  const el = document.createElement("div");
+  el.className = cls;
+  el.tabIndex = 0;
+  el.setAttribute("role", "img");
+  el._led = led;
+  el._dev = dev;
+  el.setAttribute("aria-label", ledDescription(dev, led));
+  return el;
+}
+
+// Plain-text description of an LED, e.g. "b3, led04: geargreen, medium, blinking – set by Left gear".
+function ledDescription(dev, led) {
+  let s = `${led.names.join(", ")} (command ${led.cmd}): `;
+  if (!led.rgb) return s + "not set by the bridge yet";
+  const off = ledLook(led.rgb)?.off;
+  s += off ? "off" : `${led.color || "#" + led.rgb}, ${levelName(led.rgb)}${led.blink ? ", blinking" : ""}`;
+  if (led.source) s += ` – set by ${led.source}`;
+  return s;
+}
+
+// Tooltip with name, command, colour and what set the LED – on mouse hover and on keyboard focus.
 document.addEventListener("mousemove", (e) => {
-  const tip = $("tip");
   const el = e.target.closest && e.target.closest(".led");
-  if (!el || !el._led) { tip.style.display = "none"; return; }
+  if (!el || !el._led) { if (!document.activeElement?.classList?.contains("led")) $("tip").style.display = "none"; return; }
+  showTip(el, e.clientX, e.clientY);
+});
+document.addEventListener("focusin", (e) => {
+  const el = e.target.closest && e.target.closest(".led");
+  if (!el || !el._led) { $("tip").style.display = "none"; return; }
+  const r = el.getBoundingClientRect();
+  showTip(el, r.right, r.bottom);
+});
+document.addEventListener("focusout", (e) => {
+  if (e.target.classList?.contains("led")) $("tip").style.display = "none";
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("tip").style.display = "none"; });
+
+function showTip(el, cx, cy) {
+  const tip = $("tip");
   const led = el._led;
   const look = ledLook(led.rgb);
   tip.innerHTML = "";
@@ -714,11 +781,11 @@ document.addEventListener("mousemove", (e) => {
     add("Not set by the bridge yet");
   }
   tip.style.display = "block";
-  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
-  const y = Math.min(e.clientY + 14, window.innerHeight - tip.offsetHeight - 8);
+  const x = Math.min(cx + 14, window.innerWidth - tip.offsetWidth - 8);
+  const y = Math.min(cy + 14, window.innerHeight - tip.offsetHeight - 8);
   tip.style.left = x + "px";
   tip.style.top = y + "px";
-});
+}
 
 for (const ev of ["scroll", "mouseleave", "blur"]) {
   window.addEventListener(ev, () => ($("tip").style.display = "none"), true);
@@ -990,14 +1057,14 @@ function renderRules() {
     row.dataset.i = i;
     const { text } = ledLabel(rule.device, rule.led);
     row.innerHTML = `
-      <input type="checkbox" title="Turn the rule on or off" data-act="toggle" ${rule.enabled === false ? "" : "checked"}>
+      <input type="checkbox" title="Turn the rule on or off" aria-label="Rule ${esc(rule.name || "(no name)")} in use" data-act="toggle" ${rule.enabled === false ? "" : "checked"}>
       <div><div class="nm"></div><div class="sub"></div></div>
-      <div><div class="tgt"><span class="led-now"></span><span></span></div></div>
+      <div><div class="tgt"><span class="led-now" aria-hidden="true"></span><span></span></div></div>
       <div class="val" title="Current value from MSFS"></div>
       <div class="acts">
-        <button class="small" type="button" data-act="edit">Edit</button>
-        <button class="small" type="button" data-act="up" title="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
-        <button class="small" type="button" data-act="down" title="Move down" ${i === rules.length - 1 ? "disabled" : ""}>↓</button>
+        <button class="small" type="button" data-act="edit" aria-label="Edit rule ${esc(rule.name || "(no name)")}">Edit</button>
+        <button class="small" type="button" data-act="up" title="Move up" aria-label="Move rule ${esc(rule.name || "")} up" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button class="small" type="button" data-act="down" title="Move down" aria-label="Move rule ${esc(rule.name || "")} down" ${i === rules.length - 1 ? "disabled" : ""}>↓</button>
       </div>
       <div class="chips"></div>`;
     row.querySelector(".nm").textContent = rule.name || "(no name)";
@@ -1089,11 +1156,15 @@ function lvarItem(text) {
            desc: "L-variable from the aircraft (names cannot be checked – if it stays 0, check the spelling)" };
 }
 function makeSimvarPicker(root, onChange) {
-  root.innerHTML = `<div class="row1"><input type="text" class="q" placeholder="Search, e.g. flaps, gear, canopy – or type an LVAR as L:name" spellcheck="false">
-    <input type="number" class="idx" min="1" max="16" title="Index (engine, tank …)" hidden></div>
+  root.innerHTML = `<div class="row1"><input type="text" class="q" placeholder="Search, e.g. flaps, gear, canopy – or type an LVAR as L:name" spellcheck="false"
+      aria-label="Search simvars, or type an LVAR as L:name" role="combobox" aria-autocomplete="list" aria-expanded="false">
+    <input type="number" class="idx" min="1" max="16" title="Index (engine, tank …)" aria-label="Index (engine, tank …)" hidden></div>
     <div class="list"></div><div class="info"></div>`;
   const q = root.querySelector(".q"), idx = root.querySelector(".idx"), list = root.querySelector(".list"), info = root.querySelector(".info");
   let base = "", meta = null, timer = null, results = [], sel = -1;
+  list.setAttribute("role", "listbox");
+  new MutationObserver(() => q.setAttribute("aria-expanded", String(list.style.display === "block")))
+    .observe(list, { attributes: true, attributeFilter: ["style"] });
   const value = () => (base.endsWith(":index") ? base.replace(/:index$/, ":" + (idx.value || 1)) : base);
   const show = () => {
     info.innerHTML = meta ? `${esc(meta.desc)} · unit: ${esc(meta.unit)} · now: <span class="live">–</span>` : (base ? "Unknown simvar" : "");
@@ -1177,7 +1248,7 @@ function openPalette(anchor, cb) {
   for (const [name, hex] of HUES) {
     html += `<span>${name}</span>` + LEVELS.map(([, l]) => {
       const h = hueAt(hex, l);
-      return `<button type="button" data-rgb="${h}" title="${name}, ${h}"><span class="sw" style="background:${ledLook(h).bg}"></span></button>`;
+      return `<button type="button" data-rgb="${h}" title="${name}, ${h}" aria-label="${name}, ${h}"><span class="sw" style="background:${ledLook(h).bg}"></span></button>`;
     }).join("");
   }
   html += `</div>`;
@@ -1324,9 +1395,9 @@ function renderStates() {
     blink.querySelector("input").addEventListener("change", (e) => { if (e.target.checked) st.blink = true; else delete st.blink; });
     const tools = document.createElement("span");
     tools.style.whiteSpace = "nowrap";
-    tools.innerHTML = `<button class="small" type="button" data-a="up" ${k === 0 ? "disabled" : ""}>↑</button>
-      <button class="small" type="button" data-a="down" ${k === states.length - 1 ? "disabled" : ""}>↓</button>
-      <button class="small" type="button" data-a="del" title="Remove the state">✕</button>`;
+    tools.innerHTML = `<button class="small" type="button" data-a="up" title="Move up" aria-label="Move state ${k + 1} up" ${k === 0 ? "disabled" : ""}>↑</button>
+      <button class="small" type="button" data-a="down" title="Move down" aria-label="Move state ${k + 1} down" ${k === states.length - 1 ? "disabled" : ""}>↓</button>
+      <button class="small" type="button" data-a="del" title="Remove the state" aria-label="Remove state ${k + 1}">✕</button>`;
     tools.addEventListener("click", (e) => {
       const a = e.target.closest("button")?.dataset.a;
       if (a === "up") [states[k - 1], states[k]] = [states[k], states[k - 1]];
