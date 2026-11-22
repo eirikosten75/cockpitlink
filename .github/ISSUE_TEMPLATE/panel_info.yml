@@ -1,0 +1,57 @@
+name: Panel information for the drawing library
+description: Send the PID, LED numbers and drawing of a Virpil panel, so other owners get it ready-made
+title: "Panel: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! With this, the panel can be added to the [drawing library](https://github.com/eirikosten75/virpil-led-bridge/tree/main/layouts), so other owners get its drawing and LED names automatically.
+
+        **The quickest way:** in the control panel, name the LEDs with **Setup → Walk through one by one**, draw the panel with **Edit drawing**, and paste the two entries asked for below. Fill in what you can – partial information helps too.
+  - type: input
+    id: panel
+    attributes:
+      label: Panel
+      description: The product, e.g. "Control Panel #3", "CDT-Aeromax throttle".
+    validations:
+      required: true
+  - type: input
+    id: pid
+    attributes:
+      label: USB PID and product name
+      description: Shown in **Find new devices** and at the top of the device's card in the control panel, e.g. "025B – VPC Panel #2". Say if you changed the PID in the VPC Configuration Tool, or if it is a left/right-hand version.
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware / VPC software version
+      description: The firmware date shown in the VPC Configuration Tool, e.g. 20240814.
+  - type: textarea
+    id: leds
+    attributes:
+      label: LED names and command numbers
+      description: |
+        The device's entry from your `config.json` after *Walk through one by one* (the "leds" part is enough), or a list like "B1 = 16, B2 = 13 …". Use the labels printed on the panel where it has them.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: drawing
+    attributes:
+      label: Drawing (optional)
+      description: The panel's entry from your `layouts.json` after **Edit drawing** – it is keyed by the PID.
+      render: json
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Checked
+      options:
+        - label: I checked the LED names on a real panel (each LED blinked where its name says)
+        - label: I drew the panel myself – no Virpil product photos are included
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything else?
+      description: LEDs that behave differently, more than one hardware revision, a photo of your own panel …

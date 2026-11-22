@@ -41,3 +41,7 @@ panel straight away, and **Find new devices** can take its LED names from here. 
   `leds` must be the names in `commands`.
 
 Draw the panels yourself – outlines and buttons only, no Virpil product photos.
+
+Have a panel that is not here? Send its information with the
+[panel information form](https://github.com/eirikosten75/virpil-led-bridge/issues/new?template=panel_info.yml), or
+see [CONTRIBUTING.md](../CONTRIBUTING.md).

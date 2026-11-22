@@ -29,7 +29,12 @@ file per panel. The easiest way:
    one**, so the names match the buttons).
 2. Copy your drawing from your own `layouts.json` into a new file in `layouts/`, and add the panel's PIDs, product
    name, status and LED command numbers – see [`layouts/README.md`](layouts/README.md).
-3. Open a pull request, or paste the file into an issue if you prefer.
+3. Open a pull request.
+
+No time for a pull request? Fill in the
+[panel information form](https://github.com/eirikosten75/virpil-led-bridge/issues/new?template=panel_info.yml)
+instead – the PID, the LED names and numbers, and (if you have one) your drawing are all that is needed. Panels we
+especially lack: **Control Panel #3**, and any other Virpil device with LEDs.
 
 Mark the drawing **verified** only if you checked it on a real panel; drawings made from pictures are **unverified**.
 Please draw the panel yourself (outlines and buttons) – do not include Virpil's product photos.
