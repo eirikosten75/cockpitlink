@@ -59,6 +59,7 @@
     padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
   }
   header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header h1 .ver { font-size: 12px; font-weight: 500; color: var(--muted, #9aa3b2); margin-left: 4px; }
   .pills { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
   .pill {
     display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
@@ -232,7 +233,7 @@
 </head>
 <body>
 <header>
-  <h1>Virpil LED Bridge</h1>
+  <h1>Virpil LED Bridge <span class="ver" id="ver"></span></h1>
   <div class="pills">
     <span class="pill" id="pSim"><span class="dot"></span><span>MSFS: …</span></span>
     <span class="pill" id="pRules">Rules: …</span>
@@ -729,6 +730,7 @@ function fmtDuration(s) {
 }
 
 function renderHeader(st) {
+  if (st.version) { $("ver").textContent = "v" + st.version; document.title = "Virpil LED Bridge v" + st.version; }
   const sim = $("pSim");
   sim.className = "pill " + (!st.sim.enabled ? "" : st.sim.connected ? "ok" : "warn");
   const label = !st.sim.enabled ? "MSFS: off (API only)" : st.sim.connected ? "MSFS connected" : "Waiting for MSFS";

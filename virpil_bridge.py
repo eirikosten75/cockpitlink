@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.3"
+VERSION = "1.3.1"
 
 log = logging.getLogger("virpil")
 
@@ -1336,6 +1336,8 @@ def start_tray(bridge: Bridge, url: str):
             icon.notify(str(e), "LED Bridge")
 
     menu = pystray.Menu(
+        pystray.MenuItem(f"Virpil LED Bridge v{VERSION}", lambda icon, item: None, enabled=False),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem("Open control panel", open_ui, default=True),
         pystray.MenuItem("Reload config", reload_cfg),
         pystray.MenuItem("Start with Windows", toggle_autostart,
@@ -1344,7 +1346,7 @@ def start_tray(bridge: Bridge, url: str):
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit", quit_app),
     )
-    icon = pystray.Icon("virpil-led-bridge", make_icon_image(), "Virpil LED Bridge", menu)
+    icon = pystray.Icon("virpil-led-bridge", make_icon_image(), f"Virpil LED Bridge v{VERSION}", menu)
     threading.Thread(target=icon.run, daemon=True, name="tray").start()
     return icon
 
