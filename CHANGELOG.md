@@ -6,16 +6,13 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
-### Added
-- The exe is now built by GitHub Actions from the source code when a release is published, so anyone can see which
-  code it was built from.
-- Screenshots in the README, a social preview image, this changelog.
-
 ## [1.3.2] – 2026-11-22
 
 ### Added
+- The exe is built by GitHub Actions from the source code, with a PyInstaller bootloader compiled from source in the
+  same run (fewer antivirus false positives). The release notes link to the build log, the SHA-256 and a VirusTotal
+  report.
+- Screenshots in the README, a social preview image and this changelog.
 - Accessibility in the control panel: every LED in the panel drawings can be reached with Tab and shows its details
   when focused; Enter or Space on an LED in *Setup* makes it blink on the real panel.
 - Screen-reader labels for LEDs (names, colour, brightness, blinking, which rule set it), icon buttons, rule switches,
@@ -51,7 +48,6 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
-[Unreleased]: https://github.com/eirikosten75/virpil-led-bridge/compare/v1.3.2...HEAD
 [1.3.2]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.2
 [1.3.1]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.1
 [1.3]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3
