@@ -34,9 +34,9 @@ jobs:
         shell: pwsh
         run: |
           # Tags made before requirements-build.txt existed use the pinned versions from this workflow's commit.
-          if (-not (Test-Path requirements-build.txt)) {
-            git show "${{ github.sha }}:requirements-build.txt" | Out-File -Encoding utf8 requirements-build.txt
-          }
+          if (-not (Test-Path requirements-build.txt)) { git checkout "${{ github.sha }}" -- requirements-build.txt }
+          # The README in the zip is the latest one (docs only – the program is built from the tag).
+          git checkout "${{ github.sha }}" -- README.md
           python -m pip install -r requirements-build.txt
 
       - name: Build the exe
