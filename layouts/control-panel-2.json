@@ -1,0 +1,57 @@
+{
+  "title": "Control Panel #2",
+  "status": "verified",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "pids": {
+    "025B": "Control Panel #2"
+  },
+  "product_names": [
+    "VPC Panel #2"
+  ],
+  "commands": {
+    "b1": "06",
+    "b2": "05",
+    "b3": "08",
+    "b4": "07",
+    "ind_top": "09",
+    "ind_center": "10",
+    "ind_bottom_left": "11",
+    "gear_left": "12",
+    "gear_nose": "13",
+    "gear_right": "14",
+    "ind_bottom_right": "15",
+    "b5": "21",
+    "b6": "18",
+    "b7": "20",
+    "b8": "17",
+    "b9": "19",
+    "b10": "16"
+  },
+  "aspect": "1310 / 1490",
+  "deco": [
+    { "x": 2, "y": 6, "w": 22, "h": 44, "text": "LANDING GEAR" },
+    { "x": 56, "y": 4, "w": 40, "h": 28, "text": "EMERG  T7 · T8" },
+    { "x": 56, "y": 36, "w": 40, "h": 13, "text": "T9 · T10" },
+    { "x": 2, "y": 54, "w": 50, "h": 12, "text": "E1 · E2 · E3" },
+    { "x": 2, "y": 69, "w": 50, "h": 28, "text": "T1 – T6" }
+  ],
+  "leds": {
+    "b1": [34, 11, "btn", "B1"],
+    "b2": [48, 11, "btn", "B2"],
+    "b3": [34, 24, "btn", "B3"],
+    "b4": [48, 24, "btn", "B4"],
+    "ind_top": [41, 33, "rect"],
+    "ind_center": [41, 40, "round"],
+    "ind_bottom_left": [30, 44.2, "rect"],
+    "ind_bottom_right": [52, 44.2, "rect"],
+    "gear_left": [35.5, 46.5, "round"],
+    "gear_nose": [41, 45.6, "round"],
+    "gear_right": [46.5, 47.2, "round"],
+    "b5": [64, 63, "btn", "B5"],
+    "b6": [81, 63, "btn", "B6"],
+    "b7": [64, 76, "btn", "B7"],
+    "b8": [81, 76, "btn", "B8"],
+    "b9": [64, 89, "btn", "B9"],
+    "b10": [81, 89, "btn", "B10"]
+  }
+}

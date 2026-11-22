@@ -71,7 +71,7 @@ jobs:
         shell: pwsh
         run: |
           $name = if ($env:TAG) { "VirpilLedBridge-$env:TAG.zip" } else { "VirpilLedBridge-${{ github.sha }}.zip" }
-          Compress-Archive -Path VirpilLedBridge.exe, config.example.json, layouts.json, README.md, LICENSE -DestinationPath $name
+          Compress-Archive -Path VirpilLedBridge.exe, config.example.json, README.md, LICENSE -DestinationPath $name
           "name=$name" >> $env:GITHUB_OUTPUT
           $exe = (Get-FileHash VirpilLedBridge.exe -Algorithm SHA256).Hash
           $zip = (Get-FileHash $name -Algorithm SHA256).Hash

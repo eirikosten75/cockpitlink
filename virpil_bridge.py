@@ -761,49 +761,121 @@ def layouts_path(config_path: str) -> Path:
     return Path(config_path).with_name("layouts.json")
 
 
+LAYOUTS_INFO = ("Your own panel drawings, and your changes to the drawings in the bridge's built-in library "
+                 "(the layouts folder in the repository). Keyed by USB PID. Made by Edit drawing in the control "
+                 "panel; you can also edit it by hand – changes show up within a second. Delete a panel's entry "
+                 "(or press 'Go back to the library drawing' in the editor) to use the library drawing again.")
+
+
 def ensure_layouts_file(config_path: str) -> None:
-    """Writes the bundled default layouts.json next to config.json if there is none, so it can be edited."""
+    """Writes an (empty) layouts.json for your own drawings next to config.json if there is none."""
     target = layouts_path(config_path)
-    bundled = resource_dir() / "layouts.json"
-    if target.exists() or not bundled.exists() or target.resolve() == bundled.resolve():
+    if target.exists():
         return
     try:
-        target.write_bytes(bundled.read_bytes())
-        log.info("Wrote the default panel drawings to %s", target)
+        target.write_text(dump_layouts({"_info": LAYOUTS_INFO}), encoding="utf-8")
+        log.info("Wrote %s for your own panel drawings", target)
     except OSError as e:
         log.warning("Could not write %s: %s", target, e)
 
 
-def load_layouts(config_path: str) -> dict:
-    """The panel drawings: layouts.json next to config.json, or the bundled default if that is missing or invalid.
-    Returns {"layouts": {pid: layout}, "path": str, "error": str | None}."""
-    def read(p: Path) -> dict:
-        with open(p, encoding="utf-8") as f:
+# The library: one file per panel in the layouts folder (bundled inside the exe) ----------------
+LIBRARY_STATUSES = ("verified", "unverified")
+
+
+def library_dir() -> Path:
+    return resource_dir() / "layouts"
+
+
+def load_library() -> dict:
+    """The panel drawings in the library: {"by_pid": {PID: entry}, "by_name": {product name: entry}, "errors": []}.
+    entry = {"id", "title", "status", "checked", "pids": {PID: title}, "product_names", "commands", "drawing"}."""
+    by_pid, by_name, errors = {}, {}, []
+    folder = library_dir()
+    for f in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        try:
+            with open(f, encoding="utf-8") as fh:
+                d = json.load(fh)
+            pids = {str(k).upper(): str(v) for k, v in (d.get("pids") or {}).items()}
+            if not pids or not all(re.fullmatch(r"[0-9A-F]{4}", p) for p in pids):
+                raise ValueError("'pids' must map USB PIDs (4 hex digits) to titles")
+            status = d.get("status", "unverified")
+            if status not in LIBRARY_STATUSES:
+                raise ValueError(f"'status' must be one of {', '.join(LIBRARY_STATUSES)}")
+            drawing = clean_layout({k: d[k] for k in ("title", "aspect", "btn", "wide", "deco", "leds") if k in d})
+            commands = {str(k): f"{int(c):02d}" for k, c in (d.get("commands") or {}).items()}
+            for name, c in commands.items():
+                if not LED_NAME_RE.match(name) or not 1 <= int(c) <= 54:
+                    raise ValueError(f"invalid command entry '{name}': '{c}'")
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as e:
+            errors.append(f"{f.name}: {e}")
+            log.warning("Library drawing %s could not be read: %s", f.name, e)
+            continue
+        entry = {"id": f.stem, "title": d.get("title", f.stem), "status": status, "checked": d.get("checked", ""),
+                 "pids": pids, "product_names": [str(n) for n in d.get("product_names", [])],
+                 "commands": commands, "drawing": drawing}
+        for p in pids:
+            by_pid.setdefault(p, entry)
+        for n in entry["product_names"]:
+            by_name.setdefault(_norm_name(n), entry)
+    return {"by_pid": by_pid, "by_name": by_name, "errors": errors}
+
+
+def _library_drawing(entry: dict, pid: str) -> dict:
+    return {**entry["drawing"], "title": entry["pids"].get(pid, entry["title"])}
+
+
+def _same_drawing(a: dict, b: dict) -> bool:
+    try:
+        return clean_layout(a) == clean_layout(b)
+    except ValueError:
+        return False
+
+
+def read_own_layouts(config_path: str) -> tuple[dict, str | None]:
+    """Your layouts.json as it is on disk (raw), and an error text if it cannot be read."""
+    try:
+        with open(layouts_path(config_path), encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict):
             raise ValueError("the file must contain a JSON object")
-        return data
-
-    path, error = layouts_path(config_path), None
-    try:
-        data = read(path)
+        return data, None
     except FileNotFoundError:
-        path, data = resource_dir() / "layouts.json", None
-    except (ValueError, json.JSONDecodeError) as e:
-        error = f"layouts.json could not be read ({e}); using the built-in drawings."
-        path, data = resource_dir() / "layouts.json", None
-    if data is None:
-        try:
-            data = read(resource_dir() / "layouts.json")
-        except (OSError, ValueError, json.JSONDecodeError):
-            data = {}
-    layouts = {k.upper(): v for k, v in data.items() if not k.startswith("_") and isinstance(v, dict)}
-    for pid, lay in list(layouts.items()):  # resolve "same_as"
+        return {}, None
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        return {}, f"layouts.json could not be read ({e}); only the library drawings are used until it is fixed."
+
+
+def load_layouts(config_path: str) -> dict:
+    """The panel drawings: the library, with your own drawings and changes from layouts.json on top.
+    Each drawing gets "source": library / changed (your copy of a library drawing) / own, and for library panels
+    "library": {id, status, checked, pids}. Returns {"layouts": {pid: layout}, "path", "error", "photos", "mtime"}."""
+    lib = load_library()
+    data, error = read_own_layouts(config_path)
+    own = {k.upper(): v for k, v in data.items() if not k.startswith("_") and isinstance(v, dict)}
+    for pid, lay in list(own.items()):  # resolve "same_as"
         src = str(lay.get("same_as", "")).upper()
-        if src and src in layouts:
-            layouts[pid] = {**layouts[src], **{k: v for k, v in lay.items() if k != "same_as"}, "shared_with": src}
-    return {"layouts": layouts, "path": str(path), "error": error, "photos": list_photos(config_path),
-            "mtime": file_mtime(layouts_path(config_path))}
+        if not src:
+            continue
+        if src in own and not own[src].get("same_as"):
+            own[pid] = {**own[src], **{k: v for k, v in lay.items() if k != "same_as"}, "shared_with": src}
+        elif src in lib["by_pid"]:
+            own[pid] = {**_library_drawing(lib["by_pid"][src], src), **{k: v for k, v in lay.items() if k != "same_as"}}
+        else:
+            del own[pid]
+    layouts = {}
+    for pid, entry in lib["by_pid"].items():
+        info = {"id": entry["id"], "status": entry["status"], "checked": entry["checked"], "pids": list(entry["pids"])}
+        layouts[pid] = {**_library_drawing(entry, pid), "source": "library", "library": info}
+    for pid, lay in own.items():
+        base = layouts.get(pid)
+        if base and _same_drawing(lay, base):
+            continue  # an unchanged copy of the library drawing (e.g. layouts.json from before 1.6)
+        layouts[pid] = {**lay, "source": "changed" if base else "own", **({"library": base["library"]} if base else {})}
+    if lib["errors"]:
+        error = ((error + " ") if error else "") + "Library: " + "; ".join(lib["errors"])
+    return {"layouts": layouts, "path": str(layouts_path(config_path)), "error": error,
+            "photos": list_photos(config_path), "mtime": file_mtime(layouts_path(config_path))}
 
 
 # Drawings edited in the control panel ------------------------------------------------------
@@ -887,13 +959,10 @@ def dump_layouts(data: dict) -> str:
     return "{\n" + ",\n\n".join(parts) + "\n}\n"
 
 
-def save_layout(config_path: str, key: str, layout: dict, mtime: float | None = None) -> str:
-    """Saves one drawing into layouts.json (next to config.json), keeping the others. A drawing that reuses
-    another one with same_as is saved into that one, so both stay the same. Backs up the old file."""
+def _own_layouts_for_edit(config_path: str, key: str, mtime: float | None) -> tuple[str, Path, dict]:
     key = str(key).upper()
     if not LAYOUT_KEY_RE.match(key):
         raise ValueError(f"Invalid drawing key '{key}'")
-    clean = clean_layout(layout)
     path = layouts_path(config_path)
     ensure_layouts_file(config_path)
     if mtime and path.exists() and abs(file_mtime(path) - float(mtime)) > 0.001:
@@ -908,9 +977,23 @@ def save_layout(config_path: str, key: str, layout: dict, mtime: float | None = 
         data = {}
     except (ValueError, json.JSONDecodeError) as e:
         raise ValueError(f"layouts.json could not be read ({e}). Fix or delete it first.")
+    if str(data.get("_info", "")).startswith("Drawings of the panels in the control panel."):
+        data["_info"] = LAYOUTS_INFO  # the text from before the library (1.5 and older)
+    return key, path, data
+
+
+def save_layout(config_path: str, key: str, layout: dict, mtime: float | None = None) -> str:
+    """Saves one drawing into layouts.json (next to config.json), keeping the others. A drawing that reuses
+    another one with same_as is saved into that one, so both stay the same. Changing a library drawing saves your
+    own copy; for a library drawing shared by several PIDs (left/right panels) the copy is shared the same way.
+    Backs up the old file."""
+    key, path, data = _own_layouts_for_edit(config_path, key, mtime)
+    clean = clean_layout(layout)
     existing = {k.upper(): k for k in data}
     target, note = key, ""
     raw = data.get(existing.get(key, key))
+    entry = load_library()["by_pid"].get(key)
+    group = [p for p in (entry["pids"] if entry else {}) if p != key]
     if isinstance(raw, dict) and raw.get("same_as"):
         src = str(raw["same_as"]).upper()
         if src in existing:
@@ -919,8 +1002,53 @@ def save_layout(config_path: str, key: str, layout: dict, mtime: float | None = 
             src_title = data[existing[src]].get("title")
             if src_title and clean.get("title") == raw.get("title"):
                 clean["title"] = src_title
+    elif raw is None and entry and group and not any(p in existing for p in group):
+        # Your first change to a library drawing used by several PIDs: one copy, shared like in the library.
+        target = next(iter(entry["pids"]))
+        if clean.get("title") == entry["pids"].get(key):
+            clean["title"] = entry["pids"][target]
+        for p in entry["pids"]:
+            if p != target:
+                data[p] = {"same_as": target, "title": entry["pids"][p]}
+        note = f" (your copy of the library drawing, shared by {', '.join(entry['pids'])})"
+    elif raw is None and entry:
+        note = " (your copy of the library drawing)"
     real_key = existing.get(target, target)
     data[real_key] = clean
+    _write_own_layouts(path, data)
+    log.info("Saved the drawing %s in %s%s", real_key, path, note)
+    return f"Drawing saved in layouts.json{note}."
+
+
+def reset_layout(config_path: str, key: str, mtime: float | None = None) -> str:
+    """Removes your own drawing for this PID from layouts.json, so the library drawing is used again (or, for a
+    panel that is not in the library, the simple grid). Drawings shared with same_as are removed together."""
+    key, path, data = _own_layouts_for_edit(config_path, key, mtime)
+    entry = load_library()["by_pid"].get(key)
+    existing = {k.upper(): k for k in data}
+    remove = {key} | (set(entry["pids"]) if entry else set())
+    raw = data.get(existing.get(key, key))
+    if isinstance(raw, dict) and raw.get("same_as"):
+        remove.add(str(raw["same_as"]).upper())
+    changed = True
+    while changed:  # also drop drawings that point at one being removed
+        changed = False
+        for k, v in data.items():
+            if isinstance(v, dict) and str(v.get("same_as", "")).upper() in remove and k.upper() not in remove:
+                remove.add(k.upper())
+                changed = True
+    gone = [existing[k] for k in remove if k in existing]
+    if not gone:
+        return "There was no drawing of your own to remove."
+    for k in gone:
+        del data[k]
+    _write_own_layouts(path, data)
+    log.info("Removed the drawings %s from %s", ", ".join(sorted(gone)), path)
+    return ("Back to the library drawing." if entry else "Drawing removed – the panel is shown as a grid.") + \
+        f" Removed from layouts.json: {', '.join(sorted(gone))}."
+
+
+def _write_own_layouts(path: Path, data: dict) -> None:
     if path.exists():
         backups = path.with_name("backups")
         backups.mkdir(exist_ok=True)
@@ -935,8 +1063,6 @@ def save_layout(config_path: str, key: str, layout: dict, mtime: float | None = 
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(dump_layouts(data), encoding="utf-8")
     os.replace(tmp, path)
-    log.info("Saved the drawing %s in %s%s", real_key, path, note)
-    return f"Drawing saved in layouts.json{note}."
 
 
 def photos_dir(config_path: str) -> Path:
@@ -1142,11 +1268,13 @@ def _device_key(name: str, taken) -> str:
 def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
     """The Virpil devices plugged in now, each with a ready config entry:
     [{"key", "pid", "name", "source", "in_config", "spec", "example_key"}]. source is 'config' (already in
-    config.json), 'known' (a panel with verified LED names in config.example.json), 'profile' (LEDs from the
+    config.json), 'known' (a panel with verified LED names in config.example.json), 'library' or
+    'library_unverified' (LED names from a drawing in the library), 'profile' (LEDs from the
     VPC profile) or 'guess' (no profile: LEDs 05-24, to be checked in LED setup)."""
     example = load_example_config(config_path)["devices"]
     known_by_pid = {str(s["pid"]).upper(): (k, s) for k, s in example.items()}
     known_by_name = {_norm_name(s.get("name", k)): (k, s) for k, s in example.items()}
+    library = load_library()
     profiles = vpc_profile_leds()
     current = (cfg or {}).get("devices", {})
     in_config = {str(s["pid"]).upper(): k for k, s in current.items()}
@@ -1162,7 +1290,10 @@ def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
             continue
         # Match on the PID first, then on the product name (PIDs can be changed, and left/right variants differ).
         known = known_by_pid.get(pid) or known_by_name.get(_norm_name(name))
-        if prof is not None and not prof["cmds"] and not known:
+        lib = None if known else (library["by_pid"].get(pid) or library["by_name"].get(_norm_name(name)))
+        if lib and not lib["commands"]:
+            lib = None
+        if prof is not None and not prof["cmds"] and not known and not lib:
             log.info("Found %s (PID %s), but its VPC profile has no LEDs – left out.", name, pid)
             continue
         if known:
@@ -1172,6 +1303,13 @@ def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
                 spec.setdefault("layout", str(spec["pid"]).upper())
             spec.update({"vid": VIRPIL_VID, "pid": pid})
             source = "known"
+        elif lib:
+            # A panel in the drawing library: its LED names and drawing (verified or not – see the status).
+            key = _device_key(name, taken)
+            spec = {"name": name, "vid": VIRPIL_VID, "pid": pid, "leds": dict(lib["commands"])}
+            if pid not in lib["pids"]:
+                spec["layout"] = next(iter(lib["pids"]))
+            source = "library" if lib["status"] == "verified" else "library_unverified"
         else:
             key = _device_key(name, taken)
             cmds = prof["cmds"] if prof else FALLBACK_LED_CMDS
@@ -1222,7 +1360,10 @@ def add_device_to_config(cfg: dict, example: dict, d: dict) -> int:
     return len(added)
 
 
-SOURCE_TEXT = {"known": "known panel", "profile": "LEDs from the VPC profile",
+SOURCE_TEXT = {"known": "known panel", "library": "LED names and drawing from the library",
+               "library_unverified": "LED names and drawing from the library, not yet checked on a real panel – "
+                                     "check them with LED setup",
+               "profile": "LEDs from the VPC profile",
                "guess": "no VPC profile, LEDs 05-24 guessed – check them with LED setup"}
 
 
@@ -1625,11 +1766,14 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                 elif path == "/api/live":
                     watch = [w for w in str(p.get("watch", "")).split(",") if w]
                     self._reply(200, bridge.live(watch))
-                elif path == "/api/layouts" and self.command == "POST":
+                elif path in ("/api/layouts", "/api/layouts/reset") and self.command == "POST":
                     if not self._from_ui():
                         return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
                     try:
-                        msg = save_layout(bridge.config_path, p["key"], p["layout"], p.get("mtime"))
+                        if path == "/api/layouts/reset":
+                            msg = reset_layout(bridge.config_path, p["key"], p.get("mtime"))
+                        else:
+                            msg = save_layout(bridge.config_path, p["key"], p["layout"], p.get("mtime"))
                         self._reply(200, {"ok": True, "message": msg})
                     except OSError as e:
                         self._reply(500, {"ok": False, "error": f"Could not write layouts.json: {e}"})

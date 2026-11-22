@@ -22,8 +22,17 @@ not just how to build it.
 
 ## Sharing a panel drawing or rules
 
-Drawings of more Virpil panels are very welcome. Add the panel to `layouts.json` (see README, section 5), keyed by its
-USB PID, and open a pull request. A photo of the panel helps with checking positions.
+Drawings of more Virpil panels are very welcome – they go into the library in the [`layouts`](layouts) folder, one
+file per panel. The easiest way:
+
+1. Draw the panel with **Edit drawing** in the control panel (name the LEDs first with **Setup → Walk through one by
+   one**, so the names match the buttons).
+2. Copy your drawing from your own `layouts.json` into a new file in `layouts/`, and add the panel's PIDs, product
+   name, status and LED command numbers – see [`layouts/README.md`](layouts/README.md).
+3. Open a pull request, or paste the file into an issue if you prefer.
+
+Mark the drawing **verified** only if you checked it on a real panel; drawings made from pictures are **unverified**.
+Please draw the panel yourself (outlines and buttons) – do not include Virpil's product photos.
 
 Rules for specific aircraft (for example with LVARs) can be shared as an issue or pull request with the rule from
 `config.json` and a short description of what it does.

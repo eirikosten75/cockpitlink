@@ -19,3 +19,6 @@ __pycache__/
 
 # Your own setup – made on first start from the devices found (config.example.json is the template)
 config.json
+
+# Your own panel drawings and changes (the library drawings are in layouts/)
+layouts.json

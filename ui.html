@@ -125,6 +125,8 @@
   .cell span { color: var(--panel-print); font-size: 11px; font-family: var(--mono); text-align: center; word-break: break-all; }
 
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0 14px 12px; color: var(--muted); font-size: 12px; }
+  .legend .src { margin-left: auto; }
+  .legend .src.unverified { color: var(--warn); font-weight: 600; }
   .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
 
   /* Log */
@@ -414,6 +416,7 @@
       </div>
     </div>
     <div class="dlg-foot">
+      <button type="button" id="edReset" class="danger" hidden></button>
       <span class="err" id="edErr"></span>
       <button type="button" id="edCancel">Cancel</button>
       <button type="button" id="edSave" class="primary">Save drawing</button>
@@ -595,6 +598,16 @@ function buildDevice(dev) {
   legend.innerHTML = ["40", "80", "FF"].map((v, i) =>
     `<span><i style="background:${ledLook("00" + v + "00").bg}"></i>${["dim", "medium", "full"][i]}</span>`).join("") +
     `<span><i style="background:var(--led-off)"></i>off</span><span><i style="border:1px dashed #6b7280"></i>not set by the bridge</span>`;
+  if (layout) {
+    const src = document.createElement("span");
+    const unverified = layout.library && layout.library.status !== "verified";
+    src.className = "src" + (unverified && layout.source === "library" ? " unverified" : "");
+    src.textContent = layout.source === "library"
+      ? (unverified ? "Library drawing – not yet checked on a real panel" : "Library drawing")
+      : layout.source === "changed" ? "Library drawing, changed by you" : "Your own drawing";
+    if (unverified && layout.source === "library") src.title = "Check the LED positions with Setup → Walk through one by one, and fix the drawing with Edit drawing.";
+    legend.appendChild(src);
+  }
   card.appendChild(legend);
 
   const setup = buildSetup(dev);
@@ -1134,19 +1147,27 @@ function openDrawEditor(devId) {
   const existing = LAYOUTS[key];
   const lay = existing ? edClone(existing) : { title: dev.name, aspect: "1 / 1", deco: [], leds: {} };
   const shared = lay.shared_with;
-  delete lay.same_as;
-  delete lay.shared_with;
+  const source = lay.source || (existing ? "own" : "new");
+  const libInfo = lay.library;
+  for (const k of ["same_as", "shared_with", "source", "library"]) delete lay[k];
   lay.deco = lay.deco || [];
   lay.leds = lay.leds || {};
-  ed = { devId, key, lay, orig: "", undo: [], sel: null, mtime: layoutsFileMtime, isNew: !existing };
+  ed = { devId, key, lay, orig: "", undo: [], sel: null, mtime: layoutsFileMtime, isNew: !existing, source };
   if (ed.isNew) edArrange(true);
   ed.orig = JSON.stringify(ed.lay);
   ed.undo = [];
   $("drawTitle").textContent = (existing ? "Edit drawing – " : "Make a drawing – ") + dev.name;
   const others = (lastStatus?.devices || []).filter((d) => d.id !== devId && layoutKey(d) === key).map((d) => d.name);
-  $("edKey").textContent = shared
-    ? `Saved in layouts.json as ${shared} – the same drawing is used for ${shared} and ${key} (same_as)`
-    : `Saved in layouts.json as ${key}` + (others.length ? ` – also used by ${others.join(", ")}` : "");
+  const libPids = libInfo?.pids?.length > 1 ? ` (used for ${libInfo.pids.join(" and ")})` : "";
+  const libStatus = libInfo ? (libInfo.status === "verified" ? "verified" : "not yet checked on a real panel") : "";
+  $("edKey").textContent =
+    source === "library" ? `Library drawing${libPids}, ${libStatus}. Saving keeps your changes as your own copy in layouts.json – you can go back to the library drawing at any time.`
+    : source === "changed" ? `Your changes to the library drawing${libPids}, saved in layouts.json.`
+    : shared ? `Your own drawing, saved in layouts.json as ${shared} – the same drawing is used for ${shared} and ${key} (same_as).`
+    : `Your own drawing, saved in layouts.json as ${key}` + (others.length ? ` – also used by ${others.join(", ")}` : "") + ".";
+  const reset = $("edReset");
+  reset.hidden = source !== "changed" && source !== "own";
+  reset.textContent = source === "changed" ? "Go back to the library drawing" : "Delete this drawing";
   $("edPhotoOp").value = Math.round((typeof lay.photo === "number" ? lay.photo : 0.5) * 100);
   $("edErr").textContent = "";
   edFields();
@@ -1585,6 +1606,17 @@ function edClose() {
   ed = null;
 }
 $("edCancel").addEventListener("click", edClose);
+$("edReset").addEventListener("click", async () => {
+  const toLib = ed.source === "changed";
+  if (!confirm(toLib ? "Throw away your changes to this drawing and use the library drawing again?"
+                     : "Delete your drawing of this panel? It is then shown as a simple grid.")) return;
+  const res = await post("/api/layouts/reset", { key: ed.key, mtime: ed.mtime });
+  if (!res.ok) { $("edErr").textContent = res.error; return; }
+  $("drawDlg").close();
+  toast(res.message);
+  await loadLayouts();
+  await refreshNow();
+});
 $("drawDlg").addEventListener("cancel", (e) => { e.preventDefault(); edClose(); });
 $("drawDlg").addEventListener("close", () => { ed = null; edDrag = null; });
 $("edFace").tabIndex = -1;

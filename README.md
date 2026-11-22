@@ -12,8 +12,7 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 **[Download the latest version (VirpilLedBridge-v1.5.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v1.5/VirpilLedBridge-v1.5.zip)**
 – or see all versions under [Releases](https://github.com/eirikosten75/virpil-led-bridge/releases).
 
-The zip contains `VirpilLedBridge.exe` (no Python needed), `config.example.json`, `layouts.json`, this README and
-the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds
+The zip contains `VirpilLedBridge.exe` (no Python needed), `config.example.json`, this README and the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds
 your Virpil devices and makes your own `config.json` (section 2). Updating later never overwrites it.
 
 📖 **New here?** The [wiki](https://github.com/eirikosten75/virpil-led-bridge/wiki) has a step-by-step
@@ -112,8 +111,8 @@ Other values are rounded to the nearest of these (tested: 20 turns the LED off).
   states (condition → colour, optionally blinking). The colour picker only offers the four brightness levels the
   panels actually have. *More options* has “only aircraft whose name contains …” and an extra condition on another
   simvar (e.g. only aircraft without a tailwheel). The state that applies right now is highlighted while you edit.
-- **Devices:** panels that have a drawing in `layouts.json` (Control Panel #1 and #2, SharKa-50 Panel and the
-  MongoosT-50CM3 throttle) are drawn with their LEDs where they are on the real panel; other devices are shown as a
+- **Devices:** panels that have a drawing (in the built-in library: Control Panel #1 and #2, SharKa-50 Panel and the
+  MongoosT-50CM3 throttle – or one you made yourself) are drawn with their LEDs where they are on the real panel; other devices are shown as a
   grid. Hover over an LED to see its names, colour and which rule set it.
 - **Log:** live, with a filter. The log is also written to `bridge.log` next to `config.json`.
 
@@ -158,7 +157,17 @@ through SimConnect – no SPAD, MobiFlight or other WASM module is needed. MSFS 
 uses, so the name cannot be checked: if the value stays 0, check the spelling (SPAD.neXt's data browser shows the
 names). Tested in MSFS 2024.
 
-## 5. Panel drawings (layouts.json)
+## 5. Panel drawings
+
+**The library.** The bridge has a built-in library of panel drawings – one file per panel in the
+[`layouts`](layouts) folder, each marked **verified** (checked on a real panel) or **unverified** (made from pictures;
+the control panel says so under the drawing). When you plug in a panel that is in the library, it gets its drawing
+straight away, and – if `config.example.json` does not know it – its LED names too.
+
+**Your own drawings and changes** are kept in `layouts.json` next to `config.json`. A drawing there wins over the
+library drawing for the same PID, so you can change a library drawing to suit your panel; the editor then offers
+**Go back to the library drawing**. Updates of the bridge never touch `layouts.json`, and `layouts.json` is not in
+the zip.
 
 **The easy way: Edit drawing.** Every device card in the control panel has an **Edit drawing** button (**Make
 drawing** if the panel has none yet). In the editor you can:
@@ -171,15 +180,14 @@ drawing** if the panel has none yet). In the editor you can:
   gives the drawing the same proportions. The photo stays on your PC in the `photos` folder next to `config.json`; if
   you like, it can be shown behind the drawing in the control panel too.
 
-**Save drawing** writes `layouts.json` (the old one is copied to `backups` first). **Undo** (Ctrl+Z) takes back
+**Save drawing** writes your `layouts.json` (the old one is copied to `backups` first). **Undo** (Ctrl+Z) takes back
 changes made since the editor was opened.
 
 **By hand.** You can also edit the file yourself:
 
-The drawings of the panels live in `layouts.json` next to `config.json`. If the file is missing, the bridge writes
-out its built-in default on start, so you always have one to edit. Changes show up in the control panel within a
-second – no rebuild or restart needed. If the file is invalid, the built-in drawings are used and the control panel
-tells you what is wrong.
+Your drawings live in `layouts.json` next to `config.json` (the bridge makes an empty one on the first start).
+Changes show up in the control panel within a second – no rebuild or restart needed. If the file is invalid, only the
+library drawings are used and the control panel tells you what is wrong.
 
 Each drawing is keyed by the device's USB PID (the same `pid` as in `config.json`):
 
@@ -204,6 +212,10 @@ Each drawing is keyed by the device's USB PID (the same `pid` as in `config.json
 - `same_as`: reuse another drawing (e.g. left- and right-hand versions of the same panel).
 - `photo` (set by the editor): show the photo from the `photos` folder behind the drawing, with this opacity (0–1).
 - LEDs that are not in the drawing are shown in a grid under it.
+
+The library files in [`layouts`](layouts) use the same drawing format, plus the panel's PIDs, product names, status
+and LED command numbers – see [`layouts/README.md`](layouts/README.md). New drawings for the library are very welcome
+([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## 6. API
 
@@ -255,7 +267,7 @@ python virpil_bridge.py --no-tray      # no tray icon (quit with Ctrl+C)
 ```
 
 If you change `virpil_bridge.py` or `ui.html`, rebuild the exe with `.\build.ps1`
-(requires `pip install -r requirements-build.txt`). Changes to `config.json` and `layouts.json` need no rebuild.
+(requires `pip install -r requirements-build.txt`). Changes to `config.json` and `layouts.json` need no rebuild (the `layouts` library folder is built into the exe).
 
 The exe in each release is built by GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml))
 from the tagged source code, with the exact package versions in `requirements-build.txt`. The build log and the

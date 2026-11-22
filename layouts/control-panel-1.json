@@ -1,0 +1,50 @@
+{
+  "title": "Control Panel #1",
+  "status": "verified",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "pids": {
+    "0259": "Control Panel #1",
+    "8259": "Control Panel #1 (left)"
+  },
+  "product_names": [
+    "VPC Panel #1",
+    "LEFT VPC Panel #1"
+  ],
+  "commands": {
+    "b10": "05",
+    "b11": "06",
+    "b12": "07",
+    "b7": "08",
+    "b8": "09",
+    "b9": "10",
+    "b6": "11",
+    "b4": "12",
+    "b2": "13",
+    "b5": "14",
+    "b3": "15",
+    "b1": "16"
+  },
+  "aspect": "1120 / 1300",
+  "btn": 9.6,
+  "deco": [
+    { "x": 6, "y": 3.5, "w": 35, "h": 33, "text": "EMERG  T1 · T2" },
+    { "x": 9, "y": 40, "w": 30, "h": 13, "text": "T3 · T4" },
+    { "x": 45, "y": 34, "w": 46, "h": 19, "text": "A1 · A2" },
+    { "x": 44, "y": 55, "w": 51, "h": 27, "text": "T5 – T10" },
+    { "x": 45, "y": 84, "w": 47, "h": 12, "text": "E1 · E2 · E3" }
+  ],
+  "leds": {
+    "b7": [51.3, 10.8, "btn", "B7"],
+    "b8": [67.1, 10.8, "btn", "B8"],
+    "b9": [82.8, 10.8, "btn", "B9"],
+    "b10": [52, 25.4, "btn", "B10"],
+    "b11": [67.6, 25, "btn", "B11"],
+    "b12": [83, 24.8, "btn", "B12"],
+    "b1": [16.8, 62.8, "btn", "B1"],
+    "b2": [32.9, 62.5, "btn", "B2"],
+    "b3": [17.7, 75.8, "btn", "B3"],
+    "b4": [33.5, 75.4, "btn", "B4"],
+    "b5": [18.3, 88.5, "btn", "B5"],
+    "b6": [34.2, 88.1, "btn", "B6"]
+  }
+}

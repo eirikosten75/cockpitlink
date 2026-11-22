@@ -1,0 +1,38 @@
+{
+  "title": "MongoosT-50CM3",
+  "status": "verified",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "pids": {
+    "0198": "MongoosT-50CM3"
+  },
+  "product_names": [
+    "VPC MongoosT-50CM3"
+  ],
+  "commands": {
+    "b3": "07",
+    "b4": "08",
+    "b5": "09",
+    "b6": "10",
+    "b1": "05",
+    "b2": "06"
+  },
+  "aspect": "1025 / 1120",
+  "btn": 9.4,
+  "deco": [
+    { "x": 14, "y": 2, "w": 46, "h": 42, "text": "THROTTLE" },
+    { "x": 73, "y": 9, "w": 17, "h": 33, "text": "FLAPS" },
+    { "x": 61, "y": 12, "w": 10, "h": 26, "text": "T1 · T2" },
+    { "x": 2, "y": 46, "w": 20, "h": 28, "text": "T3 · T4" },
+    { "x": 67, "y": 46, "w": 27, "h": 31, "text": "MODE 1–5" },
+    { "x": 7, "y": 79, "w": 43, "h": 12, "text": "T5 · T6 · T7" },
+    { "x": 60, "y": 80, "w": 30, "h": 12, "text": "E1 · E2" }
+  ],
+  "leds": {
+    "b1": [28.8, 53.1, "btn", "B1"],
+    "b2": [43.4, 53.1, "btn", "B2"],
+    "b3": [58, 53.6, "btn", "B3"],
+    "b4": [27.8, 67.4, "btn", "B4"],
+    "b5": [42.4, 67.7, "btn", "B5"],
+    "b6": [57.6, 68, "btn", "B6"]
+  }
+}

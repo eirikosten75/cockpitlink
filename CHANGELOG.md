@@ -6,6 +6,22 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- A library of panel drawings in the `layouts` folder (built into the exe): one file per panel, marked verified or
+  unverified, with the panel's PIDs, product names and LED command numbers. Panels in the library get their drawing
+  straight away, and new panels found by **Find new devices** can get their LED names from it.
+- The control panel shows where each drawing comes from (library, changed by you, or your own), and warns about
+  library drawings that have not been checked on a real panel.
+- Library drawings can be changed with **Edit drawing**: your changes are saved as your own copy in `layouts.json`,
+  and **Go back to the library drawing** removes them again. Your own drawings can be deleted the same way.
+
+### Changed
+- `layouts.json` now holds only your own drawings and changes, and is no longer in the zip or the repository, so
+  updates never overwrite it. An existing `layouts.json` keeps working; drawings in it that are the same as the
+  library are simply treated as library drawings.
+
 ## [1.5] – 2026-11-22
 
 ### Added

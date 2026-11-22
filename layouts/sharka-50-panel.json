@@ -1,0 +1,46 @@
+{
+  "title": "SharKa-50 Panel",
+  "status": "verified",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "pids": {
+    "025D": "SharKa-50 Panel"
+  },
+  "product_names": [
+    "VPC SharKa-50 Panel"
+  ],
+  "commands": {
+    "rst": "05",
+    "b5": "06",
+    "b6": "07",
+    "dir": "08",
+    "b8": "09",
+    "b7": "10",
+    "b3": "11",
+    "b1": "12",
+    "b2": "13",
+    "b4": "14"
+  },
+  "aspect": "930 / 1005",
+  "btn": 10,
+  "deco": [
+    { "x": 8, "y": 4, "w": 84, "h": 25, "text": "LEVERS" },
+    { "x": 34, "y": 30, "w": 36, "h": 13, "text": "START · APU · STOP" },
+    { "x": 37, "y": 45, "w": 44, "h": 10, "text": "LH/RH ENG · START/CRANK" },
+    { "x": 83, "y": 29, "w": 13, "h": 26, "text": "MASTER ARM" },
+    { "x": 8, "y": 61, "w": 34, "h": 13, "text": "HMS · AUTO · LAS" },
+    { "x": 8, "y": 77, "w": 34, "h": 20, "text": "MODE" },
+    { "x": 45, "y": 84, "w": 51, "h": 13, "text": "MAN · LNG · HE · LOW" }
+  ],
+  "leds": {
+    "b1": [14.7, 40.8, "btn", "B1"],
+    "b2": [27.2, 40.5, "btn", "B2"],
+    "b3": [16.3, 53.4, "btn", "B3"],
+    "b4": [28.8, 53.2, "btn", "B4"],
+    "rst": [52.3, 64.2, "btn", "RST"],
+    "b5": [64.5, 63.7, "btn", "B5"],
+    "b6": [76.9, 63.2, "btn", "B6"],
+    "dir": [89.2, 62.7, "btn", "DIR"],
+    "b7": [65.6, 75.6, "btn", "B7"],
+    "b8": [77.4, 75.1, "btn", "B8"]
+  }
+}
