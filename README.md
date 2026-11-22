@@ -108,9 +108,12 @@ The rule editor writes these for you, but you can also edit `config.json` by han
 **Base colours** (`startup`) are what each LED shows when no rule or API call says otherwise – also when MSFS is
 closed (`on_disconnect_color: "startup"`) and when the bridge quits (`on_exit: "startup"`).
 
-**Limitation:** L-variables (LVARs) from aircraft such as Fenix and PMDG cannot be read by the rules. Some aircraft also
-model their gauges with LVARs (e.g. the Spitfire's fuel pressure only appears in the simvar with the engine running).
-For LVARs, use SPAD.neXt, which already reads them, and let SPAD send commands to the API (see section 7).
+**L-variables (LVARs):** many aircraft (A2A, PMDG, Fenix …) keep their own systems in L-variables instead of simvars.
+A rule can use one by writing its name with `L:` in front, e.g. `"simvar": "L:FUEL_IndicatorButton_IsDown"`. In the
+rule editor, type `L:` and the name (SPAD.neXt's `LVAR:name` is accepted too). LVARs are read straight from MSFS
+through SimConnect – no SPAD, MobiFlight or other WASM module is needed. MSFS has no list of the LVARs an aircraft
+uses, so the name cannot be checked: if the value stays 0, check the spelling (SPAD.neXt's data browser shows the
+names). Tested in MSFS 2024.
 
 ## 5. Panel drawings (layouts.json)
 

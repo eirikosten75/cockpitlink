@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 log = logging.getLogger("virpil")
 
@@ -379,8 +379,19 @@ def simvar_catalog() -> list[dict]:
     return _CATALOG
 
 
+LVAR_RE = re.compile(r"L:[A-Za-z0-9_.\-:]+")
+
+
+def is_lvar(name: str) -> bool:
+    """True for an L-variable name such as 'L:FUEL_IndicatorButton_IsDown'."""
+    return str(name).startswith("L:")
+
+
 def simvar_known(name: str) -> bool:
-    """True if the simvar exists. 'NAME:3' is accepted when the list has 'NAME:index'."""
+    """True if the simvar exists. 'NAME:3' is accepted when the list has 'NAME:index'.
+    L-variables ('L:name') cannot be listed, so any well-formed L: name is accepted."""
+    if is_lvar(name):
+        return bool(LVAR_RE.fullmatch(name))
     cat = simvar_catalog()
     if not cat:
         return True  # without the list we cannot check; let the rule try
@@ -409,6 +420,25 @@ def pick_state(states: list[dict], value: float, moving: bool = False) -> dict |
         if check_condition(st.get("if"), value, moving):
             return st
     return None
+
+
+class SimReader:
+    """Reads simvars through Python-SimConnect's AircraftRequests, and L-variables ('L:name')
+    directly with a SimConnect data definition – MSFS accepts L: names there, no WASM module needed."""
+
+    def __init__(self, sm, aq, time_ms: int):
+        self.sm, self.aq, self.time_ms = sm, aq, time_ms
+        self._lvars: dict = {}
+
+    def get(self, name: str):
+        if not is_lvar(name):
+            return self.aq.get(name)
+        req = self._lvars.get(name)
+        if req is None:
+            from SimConnect.RequestList import Request
+            req = Request((name.encode(), b"Number"), self.sm, _time=self.time_ms)
+            self._lvars[name] = req
+        return req.value
 
 
 class SimRules(threading.Thread):
@@ -470,7 +500,7 @@ class SimRules(threading.Thread):
                 if not quiet:
                     log.info("Connecting to MSFS via SimConnect …")
                 sm = SimConnect()
-                aq = AircraftRequests(sm, _time=int(self.poll * 1000))
+                aq = SimReader(sm, AircraftRequests(sm, _time=int(self.poll * 1000)), int(self.poll * 1000))
                 log.info("Connected to MSFS.")
                 self.connected, self.connected_since, quiet = True, time.time(), False
                 self._loop(aq)

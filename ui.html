@@ -1079,8 +1079,15 @@ async function pollLive() {
 }
 
 // ---- Simvar picker ----
+// An L-variable typed as "L:name" (or SPAD's "LVAR:name") becomes a picker entry of its own.
+function lvarItem(text) {
+  const m = String(text || "").trim().match(/^(?:l|lvar)\s*:\s*([A-Za-z0-9_.\-:]+)$/i);
+  if (!m) return null;
+  return { name: "L:" + m[1], unit: "number", category: "LVAR",
+           desc: "L-variable from the aircraft (names cannot be checked – if it stays 0, check the spelling)" };
+}
 function makeSimvarPicker(root, onChange) {
-  root.innerHTML = `<div class="row1"><input type="text" class="q" placeholder="Search, e.g. flaps, gear, canopy, fuel pressure" spellcheck="false">
+  root.innerHTML = `<div class="row1"><input type="text" class="q" placeholder="Search, e.g. flaps, gear, canopy – or type an LVAR as L:name" spellcheck="false">
     <input type="number" class="idx" min="1" max="16" title="Index (engine, tank …)" hidden></div>
     <div class="list"></div><div class="info"></div>`;
   const q = root.querySelector(".q"), idx = root.querySelector(".idx"), list = root.querySelector(".list"), info = root.querySelector(".info");
@@ -1090,6 +1097,15 @@ function makeSimvarPicker(root, onChange) {
     info.innerHTML = meta ? `${esc(meta.desc)} · unit: ${esc(meta.unit)} · now: <span class="live">–</span>` : (base ? "Unknown simvar" : "");
   };
   async function search(text) {
+    const lv = lvarItem(text);
+    if (lv || /^\s*(l|lvar)\s*:\s*$/i.test(text)) {
+      results = lv ? [lv] : [];
+      sel = lv ? 0 : -1;
+      list.innerHTML = lv ? `<div data-i="0" class="sel"><b>${esc(lv.name)}</b> <small>number</small><i>${esc(lv.desc)}</i></div>`
+        : `<div style="cursor:default"><i>Type the LVAR name after L: (as shown in SPAD.neXt, e.g. L:FUEL_IndicatorButton_IsDown)</i></div>`;
+      list.style.display = "block";
+      return;
+    }
     const r = await (await fetch("/api/simvars?limit=40&q=" + encodeURIComponent(text))).json();
     results = r.results;
     sel = -1;
@@ -1134,8 +1150,8 @@ function makeSimvarPicker(root, onChange) {
       idx.value = m ? m[2] : "";
       idx.hidden = !base.endsWith(":index");
       q.value = base;
-      meta = null;
-      if (base) {
+      meta = lvarItem(base);
+      if (base && !meta) {
         const r = await (await fetch("/api/simvars?limit=40&q=" + encodeURIComponent(base))).json();
         meta = r.results.find((s) => s.name === base) || null;
       }
