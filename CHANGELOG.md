@@ -6,6 +6,13 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Faster start: the panels get their base colours in parallel (one queue per USB device instead of one for all),
+  and LEDs driven by rules are set first. With five panels and 57 LEDs, start-up went from about 35 s to about 15 s.
+- Faster quit for the same reason.
+
 ## [1.3.2] – 2026-11-22
 
 ### Added
@@ -48,6 +55,7 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
+[Unreleased]: https://github.com/eirikosten75/virpil-led-bridge/compare/v1.3.2...HEAD
 [1.3.2]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.2
 [1.3.1]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.1
 [1.3]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3
