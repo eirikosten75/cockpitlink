@@ -16,6 +16,12 @@ The zip contains `VirpilLedBridge.exe` (no Python needed), an example `config.js
 the licence. Unzip it to a folder of your choice and follow the quick start below. The example `config.json` is the
 author's own setup – adapt it to your devices (section 2).
 
+📖 **New here?** The [wiki](https://github.com/eirikosten75/virpil-led-bridge/wiki) has a step-by-step
+[getting started guide](https://github.com/eirikosten75/virpil-led-bridge/wiki/Getting-started), a
+[rule cookbook](https://github.com/eirikosten75/virpil-led-bridge/wiki/Rule-cookbook), tips for
+[using LVARs](https://github.com/eirikosten75/virpil-led-bridge/wiki/Using-LVARs) and an
+[FAQ](https://github.com/eirikosten75/virpil-led-bridge/wiki/FAQ-and-troubleshooting).
+
 ## 1. Quick start
 
 1. Install the **VPC Software Suite** from Virpil (it contains `VPC_LED_Control.exe`).
