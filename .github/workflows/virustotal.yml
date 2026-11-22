@@ -1,0 +1,85 @@
+# Sends the released VirpilLedBridge.exe to VirusTotal (official API v3) after each release build, waits for the
+# scan, shows the result in the run summary and adds the report link to the release notes if it is not there.
+# Needs the repository secret VT_API_KEY (a VirusTotal account's API key).
+name: VirusTotal scan
+
+on:
+  workflow_run:
+    workflows: ["Build exe"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to scan, e.g. v1.6"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'release')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+    steps:
+      - name: Download the release zip
+        run: |
+          mkdir dl && cd dl
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "VirpilLedBridge-$TAG.zip"
+          unzip -q "VirpilLedBridge-$TAG.zip" VirpilLedBridge.exe
+          sha=$(sha256sum VirpilLedBridge.exe | cut -d' ' -f1)
+          echo "SHA=$sha" >> "$GITHUB_ENV"
+          echo "VirpilLedBridge.exe from $TAG: $sha"
+
+      - name: Upload to VirusTotal and wait for the result
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        run: |
+          if [ -z "$VT_API_KEY" ]; then echo "::error::The secret VT_API_KEY is missing"; exit 1; fi
+          resp=$(curl -sS --fail-with-body -X POST https://www.virustotal.com/api/v3/files \
+                   -H "x-apikey: $VT_API_KEY" -F "file=@dl/VirpilLedBridge.exe")
+          id=$(echo "$resp" | jq -r '.data.id // empty')
+          if [ -z "$id" ]; then echo "::error::Upload failed: $(echo "$resp" | jq -c '.error // .')"; exit 1; fi
+          echo "Analysis id: $id"
+          # The free API allows 4 requests a minute: check every 30 s, for up to 15 minutes.
+          status=queued
+          for i in $(seq 1 30); do
+            sleep 30
+            a=$(curl -sS https://www.virustotal.com/api/v3/analyses/$id -H "x-apikey: $VT_API_KEY")
+            status=$(echo "$a" | jq -r '.data.attributes.status // "unknown"')
+            echo "Check $i: $status"
+            [ "$status" = "completed" ] && break
+          done
+          url="https://www.virustotal.com/gui/file/$SHA"
+          {
+            echo "### VirusTotal – VirpilLedBridge.exe $TAG"
+            echo "SHA-256 \`$SHA\` · [report]($url)"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" != "completed" ]; then
+            echo "The scan was not finished after 15 minutes – see the report link later." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          stats=$(echo "$a" | jq -r '.data.attributes.stats')
+          mal=$(echo "$stats" | jq '.malicious'); sus=$(echo "$stats" | jq '.suspicious')
+          total=$(echo "$stats" | jq '.malicious + .suspicious + .undetected + .harmless')
+          {
+            echo "**$mal malicious, $sus suspicious, of $total engines.**"
+            echo
+            echo "| Engine | Result |"
+            echo "|---|---|"
+            echo "$a" | jq -r '.data.attributes.results[] | select(.category == "malicious" or .category == "suspicious") | "| \(.engine_name) | \(.result // .category) |"'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: $mal malicious, $sus suspicious of $total"
+
+      - name: Add the report link to the release notes
+        run: |
+          url="https://www.virustotal.com/gui/file/$SHA"
+          body=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body -q .body)
+          if echo "$body" | grep -qi "$SHA"; then echo "The release notes already link the report."; exit 0; fi
+          printf '%s\n\n**VirusTotal:** [scan report](%s) for `VirpilLedBridge.exe` (SHA-256 `%s`). A few engines (mostly machine-learning "static AI" scanners) may flag it, which is a common false positive for exes packed with PyInstaller.\n' \
+            "$body" "$url" "$SHA" > notes.md
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --notes-file notes.md
+          echo "Added the report link to the release notes."
