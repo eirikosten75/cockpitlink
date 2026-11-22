@@ -6,6 +6,20 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.4] – 2026-11-22
+
+### Added
+- Automatic device detection: on the first start (no `config.json`) the bridge finds the connected Virpil devices
+  and makes `config.json` from them. Known panels (Control Panel #1 and #2, SharKa-50, MongoosT-50CM3) get checked
+  LED names, a drawing and example rules; they are recognised by USB PID, or by product name if the PID has been
+  changed. Other devices get the LEDs from their VPC Configuration Tool profile, named `led01`, `led02` …
+- **Find new devices** in the control panel, for devices plugged in later.
+- `config.example.json`: the template and the list of known panels (also built into the exe).
+- A device in `config.json` can use another panel's drawing with `"layout": "<PID>"`.
+
+### Changed
+- `config.json` is no longer in the zip or the repository, so an update never overwrites your own setup.
+
 ## [1.3.3] – 2026-11-22
 
 ### Changed
@@ -55,6 +69,7 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
+[1.4]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.4
 [1.3.3]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.3
 [1.3.2]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.2
 [1.3.1]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.1
