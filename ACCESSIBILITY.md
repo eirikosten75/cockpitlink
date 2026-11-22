@@ -6,7 +6,7 @@ describes what works today, what does not, and how to tell us about barriers.
 ## What the project does
 
 The bridge turns what happens in MSFS into light on the panel – the LEDs are an extra cue, not the only one. Everything
-the LEDs show (gear, flaps, canopy …) is still shown in the cockpit, and in MSFS's own accessibility options.
+the LEDs show (gear, flaps, canopy …) is still shown in the cockpit in MSFS.
 
 ## Supported environments
 
