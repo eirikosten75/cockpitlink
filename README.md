@@ -22,6 +22,27 @@ author's own setup – adapt it to your devices (section 2).
 [using LVARs](https://github.com/eirikosten75/virpil-led-bridge/wiki/Using-LVARs) and an
 [FAQ](https://github.com/eirikosten75/virpil-led-bridge/wiki/FAQ-and-troubleshooting).
 
+## Screenshots
+
+The control panel – rules with live values from MSFS, and the panels drawn with their LEDs as they are right now:
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/overview-light.png">
+  <img src="docs/images/overview-dark.png" alt="The control panel: the rules list with live values from MSFS, and the log" width="100%">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/panels-light.png">
+  <img src="docs/images/panels-dark.png" alt="Control Panel #2 and #1 drawn with their LEDs: the parking brake lit red, gear LEDs green, other buttons dim yellow" width="100%">
+</picture>
+
+The rule editor – a simvar (or LVAR), the LED, and the states with their colours:
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/rule-editor-light.png">
+  <img src="docs/images/rule-editor-dark.png" alt="The rule editor for the left gear: green when down, blue when up, blinking red in transit" width="70%">
+</picture>
+
 ## 1. Quick start
 
 1. Install the **VPC Software Suite** from Virpil (it contains `VPC_LED_Control.exe`).
@@ -204,8 +225,12 @@ python virpil_bridge.py --no-tray      # no tray icon (quit with Ctrl+C)
 ```
 
 If you change `virpil_bridge.py` or `ui.html`, rebuild the exe with `.\build.ps1`
-(requires `pip install pyinstaller SimConnect pystray pillow`). Changes to `config.json` and `layouts.json` need no
-rebuild.
+(requires `pip install -r requirements-build.txt`). Changes to `config.json` and `layouts.json` need no rebuild.
+
+The exe in each release is built by GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml))
+from the tagged source code, with the exact package versions in `requirements-build.txt`. The build log and the
+SHA-256 of the exe are shown on the workflow run, so you can check which code the exe came from. Changes per version
+are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Troubleshooting
 

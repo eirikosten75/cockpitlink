@@ -1,0 +1,67 @@
+# Builds VirpilLedBridge.exe on GitHub from the source code and attaches the zip to the release,
+# so anyone can see exactly which code the exe was built from.
+name: Build exe
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach the zip to (leave empty to only build)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tools
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Build the exe
+        shell: pwsh
+        run: |
+          ./build.ps1
+          if (-not (Test-Path VirpilLedBridge.exe)) { throw "The build did not produce VirpilLedBridge.exe" }
+
+      - name: Make the zip
+        id: zip
+        shell: pwsh
+        run: |
+          $name = if ($env:TAG) { "VirpilLedBridge-$env:TAG.zip" } else { "VirpilLedBridge-${{ github.sha }}.zip" }
+          Compress-Archive -Path VirpilLedBridge.exe, config.json, layouts.json, README.md, LICENSE -DestinationPath $name
+          "name=$name" >> $env:GITHUB_OUTPUT
+          $exe = (Get-FileHash VirpilLedBridge.exe -Algorithm SHA256).Hash
+          $zip = (Get-FileHash $name -Algorithm SHA256).Hash
+          "### Build of ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}" >> $env:GITHUB_STEP_SUMMARY
+          "Commit: ``${{ github.sha }}``" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "| File | SHA-256 |" >> $env:GITHUB_STEP_SUMMARY
+          "|---|---|" >> $env:GITHUB_STEP_SUMMARY
+          "| VirpilLedBridge.exe | ``$exe`` |" >> $env:GITHUB_STEP_SUMMARY
+          "| $name | ``$zip`` |" >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip.outputs.name }}
+          path: ${{ steps.zip.outputs.name }}
+
+      - name: Attach the zip to the release
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$env:TAG" "${{ steps.zip.outputs.name }}" --clobber

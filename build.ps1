@@ -1,7 +1,8 @@
 # Builds VirpilLedBridge.exe from virpil_bridge.py and ui.html (plus layouts.json as the built-in default).
 # Only needed when virpil_bridge.py or ui.html has changed. Changes to config.json and layouts.json
 # work without a rebuild.
-# Requires: python -m pip install pyinstaller SimConnect pystray pillow
+# Requires: python -m pip install -r requirements-build.txt
+# Releases are built the same way by GitHub Actions (.github/workflows/build.yml).
 #
 # The exe has no console window. It is controlled from the tray icon and the control panel
 # at http://127.0.0.1:8765/. The log is also written to bridge.log next to config.json.

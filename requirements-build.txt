@@ -1,0 +1,6 @@
+# Exact versions used to build VirpilLedBridge.exe (see build.ps1 and .github/workflows/build.yml).
+# To run from Python only, SimConnect, pystray and pillow are enough.
+pyinstaller==6.22.3
+SimConnect==0.4.26
+pystray==0.19.5
+pillow==13.0.0
