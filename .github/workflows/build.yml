@@ -8,9 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to build and attach the zip to (leave empty to only build)"
+        description: "Release tag to build (leave empty to build the current branch)"
         required: false
         default: ""
+      attach:
+        description: "Attach the zip to the release (untick to only build a test artifact)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -37,7 +41,24 @@ jobs:
           if (-not (Test-Path requirements-build.txt)) { git checkout "${{ github.sha }}" -- requirements-build.txt }
           # The README in the zip is the latest one (docs only – the program is built from the tag).
           git checkout "${{ github.sha }}" -- README.md
-          python -m pip install -r requirements-build.txt
+          # PyInstaller is installed below with a bootloader compiled here; the rest comes from the pinned list.
+          Get-Content requirements-build.txt | Where-Object { $_ -notmatch '^\s*pyinstaller\s*==' } | Set-Content req-other.txt
+          python -m pip install -r req-other.txt
+
+      # The prebuilt PyInstaller bootloader is shared by countless exes (including malware), so
+      # machine-learning virus scanners often flag anything that uses it. Compiling our own bootloader
+      # from PyInstaller's source gives a unique, clean binary and far fewer false positives.
+      - name: Build PyInstaller with its own bootloader
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path requirements-build.txt -Pattern '^\s*pyinstaller\s*==\s*([\d.]+)').Matches[0].Groups[1].Value
+          git clone --depth 1 --branch "v$ver" https://github.com/pyinstaller/pyinstaller.git "$env:RUNNER_TEMP\pyinstaller"
+          Push-Location "$env:RUNNER_TEMP\pyinstaller\bootloader"
+          python ./waf all --target-arch=64bit
+          if ($LASTEXITCODE -ne 0) { throw "Bootloader build failed" }
+          Pop-Location
+          python -m pip install "$env:RUNNER_TEMP\pyinstaller"
+          python -m PyInstaller --version
 
       - name: Build the exe
         shell: pwsh
@@ -55,7 +76,7 @@ jobs:
           $exe = (Get-FileHash VirpilLedBridge.exe -Algorithm SHA256).Hash
           $zip = (Get-FileHash $name -Algorithm SHA256).Hash
           "### Build of ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}" >> $env:GITHUB_STEP_SUMMARY
-          "Commit: ``${{ github.sha }}``" >> $env:GITHUB_STEP_SUMMARY
+          "Source commit: ``$(git rev-parse HEAD)`` · PyInstaller bootloader compiled in this run" >> $env:GITHUB_STEP_SUMMARY
           "" >> $env:GITHUB_STEP_SUMMARY
           "| File | SHA-256 |" >> $env:GITHUB_STEP_SUMMARY
           "|---|---|" >> $env:GITHUB_STEP_SUMMARY
@@ -68,7 +89,7 @@ jobs:
           path: ${{ steps.zip.outputs.name }}
 
       - name: Attach the zip to the release
-        if: env.TAG != ''
+        if: env.TAG != '' && (github.event_name == 'release' || inputs.attach)
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$env:TAG" "${{ steps.zip.outputs.name }}" --clobber
