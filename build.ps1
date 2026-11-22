@@ -1,4 +1,4 @@
-# Builds VirpilLedBridge.exe from virpil_bridge.py and ui.html (plus layouts.json as the built-in default).
+# Builds VirpilLedBridge.exe from virpil_bridge.py and ui.html (plus layouts.json and config.example.json as built-in defaults).
 # Only needed when virpil_bridge.py or ui.html has changed. Changes to config.json and layouts.json
 # work without a rebuild.
 # Requires: python -m pip install -r requirements-build.txt
@@ -21,6 +21,7 @@ python -m PyInstaller --noconfirm --clean --onefile --noconsole `
     --hidden-import pystray._win32 `
     --add-data "$(Join-Path $here 'ui.html');." `
     --add-data "$(Join-Path $here 'layouts.json');." `
+    --add-data "$(Join-Path $here 'config.example.json');." `
     --distpath $here `
     --workpath (Join-Path $work "work") `
     --specpath $work `

@@ -183,6 +183,11 @@
   .rule .acts { display: flex; gap: 4px; justify-content: flex-end; }
   .rule .led-now { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; background: var(--led-off); }
   .empty { padding: 16px; color: var(--muted); }
+  .find-intro { margin: 0; color: var(--muted); }
+  .find-list { display: grid; gap: 6px; }
+  .find-list label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+  .find-list label.added { opacity: .7; }
+  .find-list small { display: block; color: var(--muted); }
 
   dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; background: var(--surface); color: var(--text);
            width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 32px); }
@@ -252,6 +257,7 @@
   <div class="actions">
     <label class="pill" id="pAuto" title="Start VirpilLedBridge.exe automatically when you sign in to Windows">
       <input type="checkbox" id="chkAuto"> Start with Windows</label>
+    <button id="btnFind" title="Look for Virpil devices that are plugged in but not in config.json yet">Find new devices</button>
     <button class="primary" id="btnReload" title="Read config.json again without restarting the bridge">Reload config</button>
     <button class="danger" id="btnQuit" title="Sets the LEDs to their base colours and quits the bridge">Quit bridge</button>
   </div>
@@ -316,6 +322,21 @@
     </div>
   </form>
 </dialog>
+<dialog id="findDlg" aria-labelledby="findTitle">
+  <form method="dialog" autocomplete="off">
+    <h3 id="findTitle">Find new devices</h3>
+    <p class="find-intro">Virpil devices that are plugged in now. Tick the ones to add to config.json. Known panels get
+      their LED names, drawing and example rules; other devices get the LEDs from their VPC profile, named led01, led02 …
+      – name them with <b>Setup → Walk through one by one</b>.</p>
+    <div class="find-list" id="findList"></div>
+    <div class="dlg-foot">
+      <span class="err" id="findErr"></span>
+      <button type="button" id="findAgain">Search again</button>
+      <button type="button" id="findCancel">Close</button>
+      <button type="button" id="findAdd" class="primary">Add selected</button>
+    </div>
+  </form>
+</dialog>
 <div class="pal" id="pal" role="dialog" aria-label="Choose a colour"></div>
 
 <div class="tip" id="tip" aria-hidden="true"></div>
@@ -371,7 +392,7 @@ const ledEls = new Map(); // "dev/cmd" -> element
 
 function renderDevices(st) {
   const root = $("devices");
-  const sig = JSON.stringify(st.devices.map((d) => [d.id, d.pid, d.name, d.leds.map((l) => [l.cmd, l.names])]));
+  const sig = JSON.stringify(st.devices.map((d) => [d.id, d.pid, d.layout, d.name, d.leds.map((l) => [l.cmd, l.names])]));
   let rebuilt = false;
   if (root.dataset.sig !== sig) {
     // Rebuild only when the layout changes (e.g. after “Reload config” or new names).
@@ -381,6 +402,11 @@ function renderDevices(st) {
     ledEls.clear();
     swEls.clear();
     for (const dev of st.devices) root.appendChild(buildDevice(dev));
+    if (!st.devices.length) {
+      root.innerHTML = `<div class="card"><div class="empty">No Virpil devices in config.json yet. Plug them in and press
+        <button class="small primary" type="button" id="btnFindEmpty">Find new devices</button></div></div>`;
+      $("btnFindEmpty").addEventListener("click", openFind);
+    }
     rebuilt = true;
   }
   for (const dev of st.devices) {
@@ -414,7 +440,7 @@ async function refreshNow() {
 
 function buildDevice(dev) {
   const card = document.createElement("div");
-  const layout = LAYOUTS[dev.pid.toUpperCase()];
+  const layout = LAYOUTS[(dev.layout || dev.pid).toUpperCase()];
   card.className = "card" + (layout?.wide ? " wide" : "");
   const h = document.createElement("h2");
   h.innerHTML = `<span></span><span class="right"><small></small><button class="small" type="button">Setup</button></span>`;
@@ -935,6 +961,44 @@ $("btnReload").addEventListener("click", async () => {
   } finally {
     $("btnReload").disabled = offline;
   }
+});
+
+// Find new devices: plugged-in Virpil devices that are not in config.json yet
+async function loadFind() {
+  const list = $("findList");
+  $("findErr").textContent = "";
+  list.innerHTML = `<div class="empty">Looking …</div>`;
+  let devs = [];
+  try {
+    devs = (await (await fetch("/api/devices/find", { cache: "no-store" })).json()).devices || [];
+  } catch {
+    $("findErr").textContent = "Could not reach the bridge.";
+  }
+  list.innerHTML = devs.length ? "" : `<div class="empty">No Virpil devices found. Are they plugged in?</div>`;
+  for (const d of devs) {
+    const lab = document.createElement("label");
+    lab.className = d.in_config ? "added" : "";
+    lab.innerHTML = `<input type="checkbox" value="${esc(d.pid)}" ${d.in_config ? "disabled" : "checked"}>
+      <span><b>${esc(d.name)}</b> <small>PID ${esc(d.pid)} · ${d.n_leds} LEDs · ${d.in_config ? "already added as “" + esc(d.key) + "”" : esc(d.source_text)}</small></span>`;
+    list.appendChild(lab);
+  }
+  $("findAdd").disabled = !devs.some((d) => !d.in_config);
+}
+function openFind() {
+  $("findDlg").showModal();
+  loadFind();
+}
+$("btnFind").addEventListener("click", openFind);
+$("findAgain").addEventListener("click", loadFind);
+$("findCancel").addEventListener("click", () => $("findDlg").close());
+$("findAdd").addEventListener("click", async () => {
+  const pids = [...$("findList").querySelectorAll("input:checked:not(:disabled)")].map((c) => c.value);
+  if (!pids.length) { $("findErr").textContent = "Tick at least one device."; return; }
+  $("findAdd").disabled = true;
+  const res = await post("/api/devices/add", { pids });
+  if (!res.ok) { $("findErr").textContent = res.error; $("findAdd").disabled = false; return; }
+  $("findDlg").close();
+  toast(res.message);
 });
 
 $("btnQuit").addEventListener("click", async () => {

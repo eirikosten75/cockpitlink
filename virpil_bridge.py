@@ -833,6 +833,231 @@ def save_config(path: str, cfg: dict) -> Path:
 
 
 # --------------------------------------------------------------------------
+# Finding connected Virpil devices, and the starter config for new users
+# --------------------------------------------------------------------------
+VIRPIL_VID = "3344"
+# LED commands to try when no VPC profile says which LEDs a device has (05-24 = LEDs on the board).
+FALLBACK_LED_CMDS = [f"{n:02d}" for n in range(5, 25)]
+
+
+def connected_usb_devices(vid: str = VIRPIL_VID) -> list[str]:
+    """The PIDs (upper case, unique, in order) of the USB devices with this VID that are plugged in now."""
+    if sys.platform != "win32":
+        return []
+    import ctypes
+    from ctypes import wintypes
+    cm = ctypes.WinDLL("cfgmgr32")
+    flags = 0x1 | 0x100  # CM_GETIDLIST_FILTER_ENUMERATOR | CM_GETIDLIST_FILTER_PRESENT
+    size = wintypes.ULONG()
+    if cm.CM_Get_Device_ID_List_SizeW(ctypes.byref(size), "USB", flags) != 0 or not size.value:
+        return []
+    buf = ctypes.create_unicode_buffer(size.value)
+    if cm.CM_Get_Device_ID_ListW("USB", buf, size.value, flags) != 0:
+        return []
+    pids: list[str] = []
+    for dev_id in ctypes.wstring_at(ctypes.addressof(buf), size.value).split("\0"):
+        m = re.match(rf"USB\\VID_{vid}&PID_([0-9A-F]{{4}})(?:\\|$)", dev_id.upper())
+        if m and m.group(1) not in pids:
+            pids.append(m.group(1))
+    return pids
+
+
+def usb_product_name(vid: str, pid: str) -> str | None:
+    """The name Windows shows for a game controller (e.g. 'VPC Panel #2'), or None."""
+    if sys.platform != "win32":
+        return None
+    import winreg
+    key = rf"System\CurrentControlSet\Control\MediaProperties\PrivateProperties\Joystick\OEM\VID_{vid}&PID_{pid}"
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key) as k:
+            return str(winreg.QueryValueEx(k, "OEMName")[0]).strip() or None
+    except OSError:
+        return None
+
+
+def vpc_profile_leds() -> dict[str, dict]:
+    """LEDs per PID from the newest VPC Configuration Tool profile in %LOCALAPPDATA%\\VIRPIL\\PROFILES:
+    {pid: {"name": "VPC Panel #2", "cmds": ["05", "06", ...]}}. An LED is there when its type is not '---';
+    its command number is the Tag value in the OUTPUT section."""
+    import xml.etree.ElementTree as ET
+    root = Path(os.environ.get("LOCALAPPDATA", "")) / "VIRPIL" / "PROFILES"
+    if not root.is_dir():
+        return {}
+    newest: dict[str, tuple[float, dict]] = {}
+    for f in root.glob("*/*"):
+        if f.suffix.lower() != ".xml":
+            continue
+        try:
+            mtime = f.stat().st_mtime
+            xml = ET.parse(f).getroot()
+        except (OSError, ET.ParseError):
+            continue
+        pid_el, out = xml.find(".//dev_pid"), xml.find("OUTPUT")
+        if pid_el is None or out is None:
+            continue
+        pid = str(pid_el.get("Data", "")).strip().upper()
+        if not re.fullmatch(r"[0-9A-F]{4}", pid) or (pid in newest and newest[pid][0] >= mtime):
+            continue
+        types = {el.tag[12:]: el.get("Data", "") for el in out.iter() if el.tag.startswith("cnt_led_typ_")}
+        cmds = set()
+        for el in out.iter():
+            n, tag = el.tag[12:], str(el.get("Tag", ""))
+            if el.tag.startswith("cnt_led_rgb_") and n.isdigit() and types.get(n, "---") != "---" \
+                    and tag.isdigit() and 1 <= int(tag) <= 54:
+                cmds.add(f"{int(tag):02d}")
+        name = re.sub(r"^\d{8}-\d{6}-", "", f.stem).strip()
+        newest[pid] = (mtime, {"name": name, "cmds": sorted(cmds)})
+    return {pid: info for pid, (_, info) in newest.items()}
+
+
+DEFAULT_BASE_CONFIG = {
+    "vpc_led_control": {"exe": r"C:\Program Files (x86)\VPC Software Suite\tools\VPC_LED_Control.exe",
+                        "command_template": "\"{exe}\" {vid} {pid} {cmd} {r} {g} {b}"},
+    "api": {"host": "127.0.0.1", "http_port": 8765, "udp_port": 8766},
+    "sim_poll_ms": 200, "blink_interval_ms": 500, "on_disconnect_color": "startup", "on_exit": "startup",
+    "devices": {}, "rules": [],
+}
+
+
+def load_example_config(config_path: str) -> dict:
+    """config.example.json next to config.json, or the copy bundled inside the exe."""
+    for p in (Path(config_path).with_name("config.example.json"), resource_dir() / "config.example.json"):
+        try:
+            with open(p, encoding="utf-8") as f:
+                return validate_config(json.load(f))
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            log.warning("Could not read %s (%s).", p, e)
+    return json.loads(json.dumps(DEFAULT_BASE_CONFIG))
+
+
+def _norm_name(name: str) -> str:
+    """Product names compared loosely: 'LEFT VPC Panel #1' and 'L-VPC Panel #1' are the same."""
+    n = re.sub(r"\s+", " ", str(name).strip().lower())
+    n = re.sub(r"^(left |l-)", "l-", n)
+    return re.sub(r"^(right |r-)", "r-", n)
+
+
+def _device_key(name: str, taken) -> str:
+    base = re.sub(r"[^a-z0-9]+", "_", re.sub(r"^vpc\s+", "", name.lower())).strip("_")[:24] or "device"
+    if not base[0].isalpha():
+        base = "d_" + base
+    key, i = base, 2
+    while key in taken:
+        key, i = f"{base}_{i}", i + 1
+    return key
+
+
+def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
+    """The Virpil devices plugged in now, each with a ready config entry:
+    [{"key", "pid", "name", "source", "in_config", "spec", "example_key"}]. source is 'config' (already in
+    config.json), 'known' (a panel with verified LED names in config.example.json), 'profile' (LEDs from the
+    VPC profile) or 'guess' (no profile: LEDs 05-24, to be checked in LED setup)."""
+    example = load_example_config(config_path)["devices"]
+    known_by_pid = {str(s["pid"]).upper(): (k, s) for k, s in example.items()}
+    known_by_name = {_norm_name(s.get("name", k)): (k, s) for k, s in example.items()}
+    profiles = vpc_profile_leds()
+    current = (cfg or {}).get("devices", {})
+    in_config = {str(s["pid"]).upper(): k for k, s in current.items()}
+    taken = set(current)
+    found = []
+    for pid in connected_usb_devices():
+        prof = profiles.get(pid)
+        name = usb_product_name(VIRPIL_VID, pid) or (prof or {}).get("name") or f"Virpil device {pid}"
+        if pid in in_config:
+            k = in_config[pid]
+            found.append({"key": k, "pid": pid, "name": current[k].get("name", k), "source": "config",
+                          "in_config": True, "n_leds": len(set(current[k]["leds"].values())), "example_key": None})
+            continue
+        # Match on the PID first, then on the product name (PIDs can be changed, and left/right variants differ).
+        known = known_by_pid.get(pid) or known_by_name.get(_norm_name(name))
+        if prof is not None and not prof["cmds"] and not known:
+            log.info("Found %s (PID %s), but its VPC profile has no LEDs – left out.", name, pid)
+            continue
+        if known:
+            key = known[0] if known[0] not in taken else _device_key(name, taken)
+            spec = json.loads(json.dumps(known[1]))
+            if str(spec["pid"]).upper() != pid:  # the same panel under another PID: keep its drawing
+                spec.setdefault("layout", str(spec["pid"]).upper())
+            spec.update({"vid": VIRPIL_VID, "pid": pid})
+            source = "known"
+        else:
+            key = _device_key(name, taken)
+            cmds = prof["cmds"] if prof else FALLBACK_LED_CMDS
+            spec = {"name": name, "vid": VIRPIL_VID, "pid": pid,
+                    "leds": {f"led{i:02d}": c for i, c in enumerate(cmds, 1)}}
+            source = "profile" if prof else "guess"
+        taken.add(key)
+        found.append({"key": key, "pid": pid, "name": spec.get("name", name), "source": source, "in_config": False,
+                      "n_leds": len(set(spec["leds"].values())), "spec": spec,
+                      "example_key": known[0] if known else None})
+    # A steady order: devices already in the config, then known panels as in the example, then the rest by name.
+    order = {k: i for i, k in enumerate(example)}
+    cfg_order = {k: i for i, k in enumerate(current)}
+    found.sort(key=lambda d: (not d["in_config"], cfg_order.get(d["key"], 0) if d["in_config"] else
+                              order.get(d["example_key"], len(order)), d["name"].lower()))
+    return found
+
+
+def _colour_names(obj) -> set[str]:
+    """All strings in a rule or base-colour entry (some of them colour names)."""
+    if isinstance(obj, str):
+        return {obj.lower()}
+    if isinstance(obj, dict):
+        return set().union(*(_colour_names(v) for v in obj.values())) if obj else set()
+    if isinstance(obj, list):
+        return set().union(*(_colour_names(v) for v in obj)) if obj else set()
+    return set()
+
+
+def add_device_to_config(cfg: dict, example: dict, d: dict) -> int:
+    """Adds one detected device to cfg. For a known panel, also its example rules and base colour – but only if
+    cfg has no rules for that device yet. Returns the number of rules added."""
+    key, ex_key = d["key"], d.get("example_key")
+    cfg.setdefault("devices", {})[key] = d["spec"]
+    if not ex_key or any(r.get("device") == key for r in cfg.get("rules", [])):
+        return 0
+    leds, added = d["spec"]["leds"], []
+    for rule in example.get("rules", []):
+        if rule.get("device") == ex_key and rule.get("led") in leds:
+            added.append({**json.loads(json.dumps(rule)), "device": key})
+    cfg.setdefault("rules", []).extend(added)
+    start = example.get("startup", {}).get(ex_key)
+    if start is not None:
+        cfg.setdefault("startup", {}).setdefault(key, json.loads(json.dumps(start)))
+    for c in _colour_names(added) | _colour_names(start):
+        if c in example.get("colors", {}):
+            cfg.setdefault("colors", {}).setdefault(c, example["colors"][c])
+    return len(added)
+
+
+SOURCE_TEXT = {"known": "known panel", "profile": "LEDs from the VPC profile",
+               "guess": "no VPC profile, LEDs 05-24 guessed – check them with LED setup"}
+
+
+def make_starter_config(config_path: str) -> dict:
+    """A new config.json from config.example.json and the Virpil devices plugged in now."""
+    example = load_example_config(config_path)
+    cfg = {k: v for k, v in example.items() if k not in ("_info", "devices", "rules", "startup", "colors")}
+    cfg = {"_info": "Made by Virpil LED Bridge from the devices it found. Change it in the control panel, or by "
+                    "hand and then press Reload config. config.example.json and the wiki show the format.",
+           **cfg, "startup": {}, "colors": {}, "devices": {}, "rules": []}
+    try:
+        found = detect_devices(config_path)
+    except Exception as e:  # noqa: BLE001 – a new user should still get a working (empty) config
+        log.warning("Could not look for Virpil devices: %s", e)
+        found = []
+    for d in found:
+        n = add_device_to_config(cfg, example, d)
+        log.info("Found %s (PID %s): %d LEDs, %s%s.", d["name"], d["pid"], d["n_leds"], SOURCE_TEXT[d["source"]],
+                 f", {n} example rules" if n else "")
+    if not found:
+        log.warning("No Virpil devices found. Connect them and press 'Find new devices' in the control panel.")
+    return validate_config(cfg)
+
+
+# --------------------------------------------------------------------------
 # The bridge itself: config, LEDs, rules and shutdown
 # --------------------------------------------------------------------------
 class Bridge:
@@ -1052,6 +1277,32 @@ class Bridge:
 
         return self._edit_config(change)
 
+    def find_devices(self) -> list[dict]:
+        """The Virpil devices plugged in now, for 'Find new devices' (without the full config entries)."""
+        return [{k: v for k, v in d.items() if k != "spec"} | {"source_text": SOURCE_TEXT.get(d["source"], "")}
+                for d in detect_devices(self.config_path, self.cfg)]
+
+    def add_devices(self, pids: list[str]) -> str:
+        """Adds the given detected devices (by PID) to config.json, with example rules for known panels."""
+        pids = [str(p).upper() for p in pids]
+        if not pids:
+            raise ValueError("Choose at least one device")
+
+        def change(cfg: dict) -> str:
+            example = load_example_config(self.config_path)
+            new = {d["pid"]: d for d in detect_devices(self.config_path, cfg) if not d["in_config"]}
+            missing = [p for p in pids if p not in new]
+            if missing:
+                raise ValueError(f"Not found or already added: {', '.join(missing)}. Press Find new devices again.")
+            parts = []
+            for p in pids:
+                d = new[p]
+                n = add_device_to_config(cfg, example, d)
+                parts.append(d["name"] + (f" (with {n} example rules)" if n else ""))
+            return "Added " + ", ".join(parts) + "."
+
+        return self._edit_config(change)
+
     def request_stop(self) -> None:
         """Can be called from any thread (tray icon, web page)."""
         if not self.stopping.is_set():
@@ -1100,7 +1351,7 @@ class Bridge:
                     "used_by": {n: usage[(dev_id, n)] for n in names if (dev_id, n) in usage},
                 })
             devices.append({"id": dev_id, "name": dev.get("name", dev_id), "vid": dev["vid"], "pid": dev["pid"],
-                            "leds": leds})
+                            "layout": str(dev.get("layout", dev["pid"])).upper(), "leds": leds})
         rules = self.rules
         return {
             "version": VERSION,
@@ -1221,6 +1472,16 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                             self._reply(200, {"ok": True, "message": msg})
                         except OSError as e:
                             self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
+                elif path == "/api/devices/find":
+                    self._reply(200, {"devices": bridge.find_devices()})
+                elif path == "/api/devices/add" and self.command == "POST":
+                    if not self._from_ui():
+                        return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
+                    try:
+                        pids = p["pids"] if isinstance(p["pids"], list) else [p["pids"]]
+                        self._reply(200, {"ok": True, "message": bridge.add_devices(pids)})
+                    except OSError as e:
+                        self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
                 elif path == "/api/autostart" and self.command == "POST":
                     if not self._from_ui():
                         return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
@@ -1435,6 +1696,14 @@ def main() -> int:
         sh.setFormatter(fmt)
         root.addHandler(sh)
 
+    if not Path(args.config).exists():
+        # First start: make config.json from the devices that are plugged in (config.example.json has the rest).
+        log.info("No %s yet – making one from the connected Virpil devices.", args.config)
+        try:
+            Path(args.config).write_text(dump_config(make_starter_config(args.config)), encoding="utf-8")
+        except (OSError, ValueError) as e:
+            log.error("Could not make %s: %s", args.config, e)
+            return 1
     try:
         cfg = load_config(args.config)
     except ValueError as e:

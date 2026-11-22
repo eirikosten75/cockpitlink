@@ -15,3 +15,6 @@ dist/
 __pycache__/
 *.pyc
 .venv/
+
+# Your own setup – made on first start from the devices found (config.example.json is the template)
+config.json

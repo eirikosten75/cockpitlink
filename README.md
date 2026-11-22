@@ -12,9 +12,9 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 **[Download the latest version (VirpilLedBridge-v1.3.3.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v1.3.3/VirpilLedBridge-v1.3.3.zip)**
 – or see all versions under [Releases](https://github.com/eirikosten75/virpil-led-bridge/releases).
 
-The zip contains `VirpilLedBridge.exe` (no Python needed), an example `config.json`, `layouts.json`, this README and
-the licence. Unzip it to a folder of your choice and follow the quick start below. The example `config.json` is the
-author's own setup – adapt it to your devices (section 2).
+The zip contains `VirpilLedBridge.exe` (no Python needed), `config.example.json`, `layouts.json`, this README and
+the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds
+your Virpil devices and makes your own `config.json` (section 2). Updating later never overwrites it.
 
 📖 **New here?** The [wiki](https://github.com/eirikosten75/virpil-led-bridge/wiki) has a step-by-step
 [getting started guide](https://github.com/eirikosten75/virpil-led-bridge/wiki/Getting-started), a
@@ -46,12 +46,13 @@ The rule editor – a simvar (or LVAR), the LED, and the states with their colou
 ## 1. Quick start
 
 1. Install the **VPC Software Suite** from Virpil (it contains `VPC_LED_Control.exe`).
-2. Put `VirpilLedBridge.exe` and `config.json` in the same folder.
-3. Check that `vpc_led_control.exe` in `config.json` points to your `VPC_LED_Control.exe`
-   (normally `C:\Program Files (x86)\VPC Software Suite\tools\VPC_LED_Control.exe`).
-4. Double-click `VirpilLedBridge.exe`. It needs no Python and has no console window.
-5. Double-click the **tray icon** (it may be hidden under the ^ arrow) to open the control panel
+2. Plug in your Virpil devices, and unzip the files to a folder of your choice.
+3. Double-click `VirpilLedBridge.exe`. It needs no Python and has no console window. On the first start it finds
+   your Virpil devices and writes `config.json` next to the exe (see section 2).
+4. Double-click the **tray icon** (it may be hidden under the ^ arrow) to open the control panel
    at http://127.0.0.1:8765/.
+5. If the log says it cannot find `VPC_LED_Control.exe`, fix `vpc_led_control.exe` in `config.json`
+   (normally `C:\Program Files (x86)\VPC Software Suite\tools\VPC_LED_Control.exe`) and press *Reload config*.
 
 The bridge connects to MSFS automatically when the sim starts, and reconnects if the connection drops.
 
@@ -61,6 +62,21 @@ unticking removes it again. It points to the exe where it is now; if you move th
 and turn it off under Windows *Settings → Apps → Startup*.
 
 ## 2. Set up your own devices
+
+**Automatic detection.** When there is no `config.json`, the bridge makes one from the Virpil devices that are plugged
+in (USB VID `3344`):
+
+- Panels it already knows (Control Panel #1 and #2, SharKa-50, MongoosT-50CM3 – see `config.example.json`) get
+  checked LED names, a drawing and example rules (gear, flaps, parking brake, lights and more). They are recognised by
+  USB PID, or by product name if the PID has been changed.
+- Other devices get the LEDs listed in their newest VPC Configuration Tool profile
+  (`%LOCALAPPDATA%\VIRPIL\PROFILES`), named `led01`, `led02` … If there is no profile, the bridge guesses LEDs 05–24;
+  check them with *Walk through one by one* below. Devices whose profile has no LEDs are left out.
+- Plugged in a new device later? Press **Find new devices** at the top of the control panel and tick the ones to add.
+  Nothing already in your `config.json` is changed.
+
+`config.json` is yours: it is not in the zip, so an update never overwrites it. To start again from scratch, rename
+it and restart the bridge.
 
 `config.json` describes each Virpil device by its USB `vid`/`pid` (Virpil's VID is `3344`; VPC Configuration Tool shows
 the PID) and lists its LEDs by **command number** – the number `VPC_LED_Control.exe` uses for that LED. On the boards
