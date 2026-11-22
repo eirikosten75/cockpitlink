@@ -189,6 +189,44 @@
   .find-list label.added { opacity: .7; }
   .find-list small { display: block; color: var(--muted); }
 
+  .face .photo { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 12px; pointer-events: none; }
+
+  /* Drawing editor */
+  dialog.wide-dlg { width: min(1180px, calc(100vw - 24px)); }
+  .ed { display: grid; gap: 12px; padding: 16px 18px; }
+  .ed-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .ed-head small { color: var(--muted); }
+  .ed-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+  .ed-tools .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+  .ed-tools label { display: inline-flex; gap: 6px; align-items: center; }
+  .ed-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .ed-body { grid-template-columns: minmax(0, 1fr); } }
+  .ed-stage { background: var(--surface-2); border-radius: 12px; padding: 16px; display: flex; justify-content: center; }
+  .face.ed-face { margin: 0; max-width: none; touch-action: none; user-select: none; }
+  .ed-face .deco { cursor: move; opacity: 1; }
+  .ed-face .led { cursor: move; }
+  .ed-face .sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ed-face .led.sel { z-index: 5; }
+  .ed-face .deco.sel { outline-offset: 0; }
+  .ed-face .nm { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
+                 font: 9px/1 var(--mono); color: #9aa0aa; pointer-events: none; }
+  .ed-face .handle { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; background: var(--accent);
+                     border-radius: 3px; cursor: nwse-resize; }
+  .ed-side { display: grid; gap: 12px; }
+  .ed-side fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; margin: 0; min-width: 0; }
+  .ed-side legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 4px; }
+  .ed-side .r { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ed-side label.r { flex-wrap: nowrap; }
+  .ed-side .r > span { font-size: 12px; color: var(--muted); min-width: 52px; }
+  dialog .ed-side input[type=number] { width: 76px; }
+  .ed-side .hint { color: var(--muted); font-size: 12px; margin: 0; }
+  .ed-unplaced { display: flex; flex-wrap: wrap; gap: 4px; }
+  .file-btn { position: relative; overflow: hidden; padding: 3px 10px; border: 1px solid var(--border); border-radius: 7px;
+              font-size: 12px; cursor: pointer; background: var(--surface); }
+  .file-btn:hover { background: var(--surface-2); }
+  .file-btn:focus-within { outline: 2px solid var(--accent); }
+  .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
   dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; background: var(--surface); color: var(--text);
            width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 32px); }
   dialog::backdrop { background: #0008; }
@@ -337,6 +375,51 @@
     </div>
   </form>
 </dialog>
+<dialog id="drawDlg" class="wide-dlg" aria-labelledby="drawTitle">
+  <div class="ed">
+    <div class="ed-head"><h3 id="drawTitle">Edit drawing</h3><small id="edKey"></small></div>
+    <div class="ed-tools">
+      <button type="button" class="small" id="edAddBox" title="Outline of a switch, knob or group of buttons">+ Box</button>
+      <button type="button" class="small" id="edArrange" title="Put the LEDs that are not on the drawing in a grid">Place the rest in a grid</button>
+      <button type="button" class="small" id="edUndo" title="Ctrl+Z">Undo</button>
+      <label><input type="checkbox" id="edSnap" checked> Snap to ½ %</label>
+      <span class="sep"></span>
+      <label class="file-btn">Photo …
+        <input type="file" id="edPhotoFile" accept="image/jpeg,image/png,image/webp" aria-label="Choose a photo of the panel to trace"></label>
+      <button type="button" class="small" id="edPhotoShape" title="Make the drawing the same shape as the photo">Match photo shape</button>
+      <button type="button" class="small" id="edPhotoDel">Remove photo</button>
+      <label>Photo <input type="range" id="edPhotoOp" min="10" max="100" value="50" aria-label="Photo opacity"></label>
+    </div>
+    <div class="ed-body">
+      <div class="ed-stage"><div class="face drawn ed-face" id="edFace" role="group" aria-label="Drawing"></div></div>
+      <div class="ed-side">
+        <fieldset>
+          <legend>Selected</legend>
+          <div id="edProps"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Not on the drawing</legend>
+          <div class="ed-unplaced" id="edUnplaced"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Drawing</legend>
+          <div class="r"><span>Title</span><input type="text" id="edTitle" maxlength="80" style="flex:1"></div>
+          <div class="r"><span>Shape</span><input type="number" id="edAspW" min="1" step="any" aria-label="Width">
+            <b>/</b><input type="number" id="edAspH" min="1" step="any" aria-label="Height"></div>
+          <div class="r"><span>Buttons</span><input type="number" id="edBtn" min="2" max="30" step="0.1" placeholder="10.5" aria-label="Button width in percent"> % of the width</div>
+          <label class="r"><input type="checkbox" id="edWide"> Card uses the full width</label>
+          <label class="r"><input type="checkbox" id="edPhotoShow"> Show the photo in the control panel too</label>
+          <p class="hint">The photo is saved at once in the <code>photos</code> folder on this PC only – it is not part of layouts.json.</p>
+        </fieldset>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <span class="err" id="edErr"></span>
+      <button type="button" id="edCancel">Cancel</button>
+      <button type="button" id="edSave" class="primary">Save drawing</button>
+    </div>
+  </div>
+</dialog>
 <div class="pal" id="pal" role="dialog" aria-label="Choose a colour"></div>
 
 <div class="tip" id="tip" aria-hidden="true"></div>
@@ -348,11 +431,17 @@
 // Drawings of the panels, keyed by PID. They come from layouts.json next to config.json (via the bridge),
 // so they can be edited without rebuilding. LEDs are found by their names in config.json.
 let LAYOUTS = {};
+let PHOTOS = new Set();     // drawing keys that have a photo in the photos folder
+let photoVersion = 0;       // bumped when a photo changes, so the browser fetches it again
+let layoutsFileMtime = 0;   // layouts.json as it was when the drawings were fetched
 let layoutsMtime = null;
+function layoutKey(dev) { return String(dev.layout || dev.pid).toUpperCase(); }
 async function loadLayouts() {
   try {
     const r = await (await fetch("/api/layouts", { cache: "no-store" })).json();
     LAYOUTS = r.layouts || {};
+    PHOTOS = new Set(r.photos || []);
+    layoutsFileMtime = r.mtime || 0;
     if (r.error) toast(r.error, true);
   } catch { /* shown by the status polling */ }
   $("devices").dataset.sig = "";  // force the device cards to be rebuilt with the new drawings
@@ -440,13 +529,18 @@ async function refreshNow() {
 
 function buildDevice(dev) {
   const card = document.createElement("div");
-  const layout = LAYOUTS[(dev.layout || dev.pid).toUpperCase()];
+  const layout = LAYOUTS[layoutKey(dev)];
   card.className = "card" + (layout?.wide ? " wide" : "");
   const h = document.createElement("h2");
-  h.innerHTML = `<span></span><span class="right"><small></small><button class="small" type="button">Setup</button></span>`;
+  h.innerHTML = `<span></span><span class="right"><small></small><button class="small" type="button" data-draw></button>
+    <button class="small" type="button" data-setup>Setup</button></span>`;
   h.firstChild.textContent = dev.name;
   h.querySelector("small").textContent = `${dev.id} · PID ${dev.pid} · ${dev.leds.length} LEDs`;
-  const setupBtn = h.querySelector("button");
+  const drawBtn = h.querySelector("[data-draw]");
+  drawBtn.textContent = layout ? "Edit drawing" : "Make drawing";
+  drawBtn.title = layout ? "Move the LEDs, draw boxes, trace a photo" : "Make a drawing of this panel";
+  drawBtn.addEventListener("click", () => openDrawEditor(dev.id));
+  const setupBtn = h.querySelector("[data-setup]");
   card.appendChild(h);
 
   const face = document.createElement("div");
@@ -455,6 +549,15 @@ function buildDevice(dev) {
     face.setAttribute("role", "group");
     face.setAttribute("aria-label", `LEDs on ${dev.name}`);
     if (layout.aspect) face.style.aspectRatio = layout.aspect;
+    const key = layoutKey(dev);
+    if (layout.photo && PHOTOS.has(key)) {
+      const img = document.createElement("img");
+      img.className = "photo";
+      img.alt = "";
+      img.src = `/api/photo?key=${encodeURIComponent(key)}&v=${photoVersion}`;
+      img.style.opacity = layout.photo;
+      face.appendChild(img);
+    }
     for (const d of layout.deco || []) {
       const el = document.createElement("div");
       el.className = "deco";
@@ -999,6 +1102,504 @@ $("findAdd").addEventListener("click", async () => {
   if (!res.ok) { $("findErr").textContent = res.error; $("findAdd").disabled = false; return; }
   $("findDlg").close();
   toast(res.message);
+});
+
+// =============================================================================================
+// Drawing editor: move LEDs, draw boxes, trace a photo – saved in layouts.json
+// =============================================================================================
+let ed = null; // {devId, key, lay, orig, undo, sel: {kind, id}, mtime, isNew}
+const edClone = (o) => JSON.parse(JSON.stringify(o));
+function parseAspect(a) {
+  const m = /^\s*([\d.]+)\s*\/\s*([\d.]+)\s*$/.exec(a || "");
+  return m && +m[1] > 0 && +m[2] > 0 ? [+m[1], +m[2]] : [1, 1];
+}
+function edSnapV(v) { return $("edSnap").checked ? Math.round(v * 2) / 2 : Math.round(v * 10) / 10; }
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+function edDev() { return devById(ed.devId); }
+// The device's LEDs, each with the name it has in the drawing (null = not on the drawing).
+function edLeds() {
+  return (edDev()?.leds || []).map((led) => ({ led, key: led.names.find((n) => ed.lay.leds[n]) || null }));
+}
+function edDefaultLabel(name) { return /^[a-z]{1,3}\d{1,2}$/.test(name) && !/^led\d+$/.test(name) ? name.toUpperCase() : ""; }
+function edPush() {
+  ed.undo.push(JSON.stringify(ed.lay));
+  if (ed.undo.length > 100) ed.undo.shift();
+}
+function edDirty() { return ed && JSON.stringify(ed.lay) !== ed.orig; }
+
+function openDrawEditor(devId) {
+  const dev = devById(devId);
+  if (!dev) return;
+  const key = layoutKey(dev);
+  const existing = LAYOUTS[key];
+  const lay = existing ? edClone(existing) : { title: dev.name, aspect: "1 / 1", deco: [], leds: {} };
+  const shared = lay.shared_with;
+  delete lay.same_as;
+  delete lay.shared_with;
+  lay.deco = lay.deco || [];
+  lay.leds = lay.leds || {};
+  ed = { devId, key, lay, orig: "", undo: [], sel: null, mtime: layoutsFileMtime, isNew: !existing };
+  if (ed.isNew) edArrange(true);
+  ed.orig = JSON.stringify(ed.lay);
+  ed.undo = [];
+  $("drawTitle").textContent = (existing ? "Edit drawing – " : "Make a drawing – ") + dev.name;
+  const others = (lastStatus?.devices || []).filter((d) => d.id !== devId && layoutKey(d) === key).map((d) => d.name);
+  $("edKey").textContent = shared
+    ? `Saved in layouts.json as ${shared} – the same drawing is used for ${shared} and ${key} (same_as)`
+    : `Saved in layouts.json as ${key}` + (others.length ? ` – also used by ${others.join(", ")}` : "");
+  $("edPhotoOp").value = Math.round((typeof lay.photo === "number" ? lay.photo : 0.5) * 100);
+  $("edErr").textContent = "";
+  edFields();
+  edRender();
+  edProps();
+  $("drawDlg").showModal();
+}
+
+function edFields() {
+  const [w, h] = parseAspect(ed.lay.aspect);
+  $("edTitle").value = ed.lay.title || "";
+  $("edAspW").value = w;
+  $("edAspH").value = h;
+  $("edBtn").value = ed.lay.btn ?? "";
+  $("edWide").checked = !!ed.lay.wide;
+  const has = PHOTOS.has(ed.key);
+  $("edPhotoShow").checked = !!ed.lay.photo;
+  $("edPhotoShow").disabled = !has;
+  $("edPhotoShape").disabled = !has;
+  $("edPhotoDel").disabled = !has;
+  $("edPhotoOp").disabled = !has;
+}
+
+function edRender() {
+  const face = $("edFace");
+  const [w, h] = parseAspect(ed.lay.aspect);
+  face.style.aspectRatio = `${w} / ${h}`;
+  face.style.width = `min(100%, calc((100vh - 260px) * ${w / h}))`;
+  const focused = face.contains(document.activeElement);
+  face.innerHTML = "";
+  if (PHOTOS.has(ed.key)) {
+    const img = document.createElement("img");
+    img.className = "photo";
+    img.alt = "";
+    img.src = `/api/photo?key=${encodeURIComponent(ed.key)}&v=${photoVersion}`;
+    img.style.opacity = $("edPhotoOp").value / 100;
+    face.appendChild(img);
+  }
+  const isSel = (kind, id) => ed.sel && ed.sel.kind === kind && String(ed.sel.id) === String(id);
+  ed.lay.deco.forEach((d, i) => {
+    const el = document.createElement("div");
+    el.className = "deco" + (isSel("deco", i) ? " sel" : "");
+    el.dataset.kind = "deco";
+    el.dataset.id = i;
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", `Box ${d.text || i + 1}`);
+    Object.assign(el.style, { left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%" });
+    el.textContent = d.text;
+    if (isSel("deco", i)) {
+      const hd = document.createElement("div");
+      hd.className = "handle";
+      hd.dataset.handle = "1";
+      hd.title = "Drag to change the size";
+      el.appendChild(hd);
+    }
+    face.appendChild(el);
+  });
+  for (const { led, key } of edLeds()) {
+    if (!key) continue;
+    const [x, y, shape, label, pos] = ed.lay.leds[key];
+    const el = document.createElement("div");
+    el.className = `led ${shape}` + (isSel("led", key) ? " sel" : "");
+    el.dataset.kind = "led";
+    el.dataset.id = key;
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", `LED ${led.names.join(", ")} (command ${led.cmd})`);
+    el.title = `${led.names.join(", ")} – command ${led.cmd}`;
+    Object.assign(el.style, { left: x + "%", top: y + "%" });
+    if (ed.lay.btn && shape === "btn") el.style.width = ed.lay.btn + "%";
+    if (shape === "btn") {
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = key;
+      el.appendChild(nm);
+    }
+    if (label) {
+      const l = document.createElement("span");
+      l.className = "lbl" + (pos === "below" ? " below" : "");
+      l.textContent = label;
+      el.appendChild(l);
+    }
+    face.appendChild(el);
+  }
+  if (focused && ed.sel) edSelEl()?.focus({ preventScroll: true });
+  edUnplaced();
+  $("edUndo").disabled = !ed.undo.length;
+}
+
+function edSelEl() {
+  if (!ed.sel) return null;
+  return $("edFace").querySelector(`[data-kind="${ed.sel.kind}"][data-id="${CSS.escape(String(ed.sel.id))}"]`);
+}
+
+function edSelect(sel) {
+  const same = (ed.sel && sel && ed.sel.kind === sel.kind && String(ed.sel.id) === String(sel.id)) || (!ed.sel && !sel);
+  ed.sel = sel;
+  if (!same) { edRender(); edProps(); }
+}
+
+function edUnplaced() {
+  const box = $("edUnplaced");
+  box.innerHTML = "";
+  const list = edLeds().filter((l) => !l.key);
+  if (!list.length) box.innerHTML = `<span class="hint">All LEDs are on the drawing.</span>`;
+  for (const { led } of list) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "small";
+    b.textContent = `${primaryName(led.names)} (${led.cmd})`;
+    b.title = "Put it on the drawing";
+    b.addEventListener("click", () => {
+      edPush();
+      const name = primaryName(led.names);
+      ed.lay.leds[name] = [50, 50, "btn", edDefaultLabel(name)];
+      ed.sel = { kind: "led", id: name };
+      edRender();
+      edProps();
+      edSelEl()?.focus({ preventScroll: true });
+    });
+    box.appendChild(b);
+  }
+  const names = new Set((edDev()?.leds || []).flatMap((l) => l.names));
+  const extra = Object.keys(ed.lay.leds).filter((n) => !names.has(n));
+  if (extra.length) {
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.style.flexBasis = "100%";
+    p.textContent = `Kept as they are (names not on this device): ${extra.join(", ")}`;
+    box.appendChild(p);
+  }
+}
+
+// Properties of the selected LED or box
+function edProps() {
+  const box = $("edProps");
+  box.innerHTML = "";
+  box.style.display = "grid";
+  box.style.gap = "8px";
+  const sel = ed.sel;
+  if (!sel) {
+    box.innerHTML = `<p class="hint">Click an LED or a box to change it. Drag to move it; the arrow keys move the selected
+      one (with Shift: larger steps) and Delete takes it off the drawing. The blue corner on a box changes its size.</p>`;
+    return;
+  }
+  const row = (label, html) => {
+    const r = document.createElement("div");
+    r.className = "r";
+    r.innerHTML = `<span>${esc(label)}</span>` + html;
+    box.appendChild(r);
+    return r;
+  };
+  const num = (v) => `<input type="number" step="0.5" value="${esc(v)}">`;
+  if (sel.kind === "led") {
+    const v = ed.lay.leds[sel.id];
+    const info = edLeds().find((l) => l.key === sel.id);
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.innerHTML = `<b>${esc(info ? info.led.names.join(", ") : sel.id)}</b> – command ${esc(info?.led.cmd ?? "?")}`;
+    box.appendChild(p);
+    const shape = row("Shape", `<select>${[["btn", "Button"], ["round", "Round lamp"], ["rect", "Long lamp"]]
+      .map(([k, t]) => `<option value="${k}" ${v[2] === k ? "selected" : ""}>${t}</option>`).join("")}</select>`).querySelector("select");
+    shape.style.width = "auto";
+    const lbl = row("Label", `<input type="text" maxlength="20" style="flex:1" placeholder="none">`).querySelector("input");
+    lbl.value = v[3] || "";
+    const below = row("", `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox"> Label below</label>`).querySelector("input");
+    below.checked = v[4] === "below";
+    const pos = row("Position", `x ${num(v[0])} y ${num(v[1])}`).querySelectorAll("input");
+    const upd = () => {
+      edPush();
+      const label = lbl.value.trim();
+      const e = [edNum(pos[0], v[0]), edNum(pos[1], v[1]), shape.value];
+      if (label || below.checked) e.push(label);
+      if (below.checked) e.push("below");
+      ed.lay.leds[sel.id] = e;
+      edRender();
+    };
+    for (const el of [shape, below, ...pos]) el.addEventListener("change", upd);
+    lbl.addEventListener("change", upd);
+    const acts = row("", `<button type="button" class="small">Blink on the panel</button>
+      <button type="button" class="small danger">Take off the drawing</button>`).querySelectorAll("button");
+    acts[0].addEventListener("click", () => info && identify(ed.devId, info.led.cmd));
+    acts[1].addEventListener("click", edRemoveSel);
+  } else {
+    const d = ed.lay.deco[sel.id];
+    const txt = row("Text", `<input type="text" maxlength="60" style="flex:1">`).querySelector("input");
+    txt.value = d.text || "";
+    const xy = row("Position", `x ${num(d.x)} y ${num(d.y)}`).querySelectorAll("input");
+    const wh = row("Size", `w ${num(d.w)} h ${num(d.h)}`).querySelectorAll("input");
+    const upd = () => {
+      edPush();
+      Object.assign(d, { text: txt.value, x: edNum(xy[0], d.x), y: edNum(xy[1], d.y),
+                         w: Math.max(1, edNum(wh[0], d.w)), h: Math.max(1, edNum(wh[1], d.h)) });
+      edRender();
+    };
+    for (const el of [txt, ...xy, ...wh]) el.addEventListener("change", upd);
+    const acts = row("", `<button type="button" class="small">Copy</button>
+      <button type="button" class="small danger">Delete box</button>`).querySelectorAll("button");
+    acts[0].addEventListener("click", () => {
+      edPush();
+      ed.lay.deco.push({ ...d, x: clamp(d.x + 3, 0, 95), y: clamp(d.y + 3, 0, 95) });
+      ed.sel = { kind: "deco", id: ed.lay.deco.length - 1 };
+      edRender();
+      edProps();
+    });
+    acts[1].addEventListener("click", edRemoveSel);
+  }
+}
+function edNum(input, fallback) {
+  const n = parseFloat(input.value);
+  return Number.isFinite(n) ? clamp(Math.round(n * 10) / 10, -50, 150) : fallback;
+}
+
+function edRemoveSel() {
+  if (!ed.sel) return;
+  edPush();
+  if (ed.sel.kind === "led") delete ed.lay.leds[ed.sel.id];
+  else ed.lay.deco.splice(ed.sel.id, 1);
+  ed.sel = null;
+  edRender();
+  edProps();
+}
+
+// Puts the LEDs that are not on the drawing in a grid. With all=true (new drawing) it uses the whole face.
+function edArrange(all) {
+  const list = edLeds().filter((l) => !l.key);
+  if (!list.length) { if (!all) toast("All LEDs are already on the drawing."); return; }
+  if (!all) edPush();
+  const cols = Math.ceil(Math.sqrt(list.length));
+  const rows = Math.ceil(list.length / cols);
+  const [top, bottom] = all ? [12, 88] : [60, 90];
+  list.forEach(({ led }, i) => {
+    const name = primaryName(led.names);
+    const c = i % cols, r = Math.floor(i / cols);
+    const x = cols > 1 ? 12 + (76 * c) / (cols - 1) : 50;
+    const y = rows > 1 ? top + ((bottom - top) * r) / (rows - 1) : (top + bottom) / 2;
+    ed.lay.leds[name] = [Math.round(x * 2) / 2, Math.round(y * 2) / 2, "btn", edDefaultLabel(name)];
+  });
+  if (!all) { edRender(); edProps(); }
+}
+
+// Dragging with mouse, pen or touch
+let edDrag = null;
+$("edFace").addEventListener("pointerdown", (e) => {
+  if (!ed || e.button > 0) return;
+  const item = e.target.closest("[data-kind]");
+  if (!item) { edSelect(null); return; }
+  e.preventDefault();
+  const resize = !!e.target.closest("[data-handle]");
+  edSelect({ kind: item.dataset.kind, id: item.dataset.kind === "deco" ? +item.dataset.id : item.dataset.id });
+  const el = edSelEl();
+  el?.focus({ preventScroll: true });
+  const rect = $("edFace").getBoundingClientRect();
+  const start = ed.sel.kind === "led" ? [...ed.lay.leds[ed.sel.id]] : { ...ed.lay.deco[ed.sel.id] };
+  edDrag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, rect, start, resize, before: JSON.stringify(ed.lay), moved: false };
+  $("edFace").setPointerCapture(e.pointerId);
+});
+$("edFace").addEventListener("pointermove", (e) => {
+  if (!edDrag || e.pointerId !== edDrag.id) return;
+  const dx = ((e.clientX - edDrag.x0) / edDrag.rect.width) * 100;
+  const dy = ((e.clientY - edDrag.y0) / edDrag.rect.height) * 100;
+  if (!edDrag.moved && Math.hypot(e.clientX - edDrag.x0, e.clientY - edDrag.y0) < 3) return;
+  edDrag.moved = true;
+  const el = edSelEl();
+  const s = edDrag.start;
+  if (ed.sel.kind === "led") {
+    const v = ed.lay.leds[ed.sel.id];
+    v[0] = clamp(edSnapV(s[0] + dx), 0, 100);
+    v[1] = clamp(edSnapV(s[1] + dy), 0, 100);
+    if (el) Object.assign(el.style, { left: v[0] + "%", top: v[1] + "%" });
+  } else {
+    const d = ed.lay.deco[ed.sel.id];
+    if (edDrag.resize) {
+      d.w = clamp(edSnapV(s.w + dx), 1, 100 - d.x + 5);
+      d.h = clamp(edSnapV(s.h + dy), 1, 100 - d.y + 5);
+    } else {
+      d.x = clamp(edSnapV(s.x + dx), -5, 100 - Math.min(d.w, 100));
+      d.y = clamp(edSnapV(s.y + dy), -5, 100 - Math.min(d.h, 100));
+    }
+    if (el) Object.assign(el.style, { left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%" });
+  }
+});
+function edEndDrag(e) {
+  if (!edDrag || e.pointerId !== edDrag.id) return;
+  if (edDrag.moved && JSON.stringify(ed.lay) !== edDrag.before) {
+    ed.undo.push(edDrag.before);
+    edProps();
+    $("edUndo").disabled = false;
+  }
+  edDrag = null;
+}
+$("edFace").addEventListener("pointerup", edEndDrag);
+$("edFace").addEventListener("pointercancel", edEndDrag);
+// Keyboard: Tab to an item selects it, the arrow keys move it, Delete takes it off.
+$("edFace").addEventListener("focusin", (e) => {
+  const item = e.target.closest("[data-kind]");
+  if (ed && item) edSelect({ kind: item.dataset.kind, id: item.dataset.kind === "deco" ? +item.dataset.id : item.dataset.id });
+});
+$("drawDlg").addEventListener("keydown", (e) => {
+  if (!ed) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    if (e.target.matches("input[type=text], input[type=number]")) return;
+    e.preventDefault();
+    edUndo();
+    return;
+  }
+  if (!e.target.closest("#edFace") || !ed.sel) return;
+  const step = e.shiftKey ? 2 : 0.5;
+  const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (mv) {
+    e.preventDefault();
+    edPush();
+    if (ed.sel.kind === "led") {
+      const v = ed.lay.leds[ed.sel.id];
+      v[0] = clamp(Math.round((v[0] + mv[0]) * 10) / 10, 0, 100);
+      v[1] = clamp(Math.round((v[1] + mv[1]) * 10) / 10, 0, 100);
+    } else {
+      const d = ed.lay.deco[ed.sel.id];
+      d.x = Math.round((d.x + mv[0]) * 10) / 10;
+      d.y = Math.round((d.y + mv[1]) * 10) / 10;
+    }
+    edRender();
+    edProps();
+  } else if (e.key === "Delete" || e.key === "Backspace") {
+    e.preventDefault();
+    edRemoveSel();
+    $("edFace").focus();
+  }
+});
+function edUndo() {
+  if (!ed.undo.length) return;
+  ed.lay = JSON.parse(ed.undo.pop());
+  if (ed.sel?.kind === "led" && !ed.lay.leds[ed.sel.id]) ed.sel = null;
+  if (ed.sel?.kind === "deco" && !ed.lay.deco[ed.sel.id]) ed.sel = null;
+  edFields();
+  edRender();
+  edProps();
+}
+$("edUndo").addEventListener("click", edUndo);
+$("edAddBox").addEventListener("click", () => {
+  edPush();
+  ed.lay.deco.push({ x: 35, y: 40, w: 30, h: 15, text: "" });
+  ed.sel = { kind: "deco", id: ed.lay.deco.length - 1 };
+  edRender();
+  edProps();
+  $("edProps").querySelector("input")?.focus();
+});
+$("edArrange").addEventListener("click", () => edArrange(false));
+
+// The drawing's own settings
+function edSetField(fn) { edPush(); fn(); edRender(); }
+$("edTitle").addEventListener("change", () => edSetField(() => { ed.lay.title = $("edTitle").value.trim(); }));
+for (const id of ["edAspW", "edAspH"]) {
+  $(id).addEventListener("change", () => {
+    const w = parseFloat($("edAspW").value), h = parseFloat($("edAspH").value);
+    if (!(w > 0 && h > 0)) { $("edErr").textContent = "The shape needs a width and height above 0."; return; }
+    $("edErr").textContent = "";
+    edSetField(() => { ed.lay.aspect = `${w} / ${h}`; });
+  });
+}
+$("edBtn").addEventListener("change", () => edSetField(() => {
+  const n = parseFloat($("edBtn").value);
+  if (n >= 2 && n <= 30) ed.lay.btn = Math.round(n * 10) / 10; else { delete ed.lay.btn; $("edBtn").value = ""; }
+}));
+$("edWide").addEventListener("change", () => edSetField(() => { if ($("edWide").checked) ed.lay.wide = true; else delete ed.lay.wide; }));
+$("edPhotoShow").addEventListener("change", () => edSetField(() => {
+  if ($("edPhotoShow").checked) ed.lay.photo = $("edPhotoOp").value / 100; else delete ed.lay.photo;
+}));
+$("edPhotoOp").addEventListener("input", () => {
+  const img = $("edFace").querySelector(".photo");
+  if (img) img.style.opacity = $("edPhotoOp").value / 100;
+  if (ed?.lay.photo) ed.lay.photo = $("edPhotoOp").value / 100;
+});
+
+// Photo: shrunk in the browser to at most 1600 px and stored as JPEG in the photos folder
+function loadImg(src) {
+  return new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
+}
+$("edPhotoFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file || !ed) return;
+  $("edErr").textContent = "";
+  let data;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await loadImg(url);
+    URL.revokeObjectURL(url);
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * scale);
+    c.height = Math.round(img.naturalHeight * scale);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    data = c.toDataURL("image/jpeg", 0.85);
+  } catch {
+    $("edErr").textContent = "Could not read the image. Use a JPEG, PNG or WebP file.";
+    return;
+  }
+  const res = await post("/api/photo", { key: ed.key, data });
+  if (!res.ok) { $("edErr").textContent = res.error; return; }
+  PHOTOS.add(ed.key);
+  photoVersion = Date.now();
+  if (ed.isNew && !ed.undo.length) await edPhotoShape();
+  toast(res.message + " Drag the LEDs onto the buttons in the photo.");
+  edFields();
+  edRender();
+  $("devices").dataset.sig = "";
+});
+async function edPhotoShape() {
+  try {
+    const img = await loadImg(`/api/photo?key=${encodeURIComponent(ed.key)}&v=${photoVersion}`);
+    edSetField(() => { ed.lay.aspect = `${img.naturalWidth} / ${img.naturalHeight}`; });
+    edFields();
+  } catch {
+    $("edErr").textContent = "Could not load the photo.";
+  }
+}
+$("edPhotoShape").addEventListener("click", edPhotoShape);
+$("edPhotoDel").addEventListener("click", async () => {
+  if (!confirm("Remove the photo of this panel from the photos folder?")) return;
+  const res = await post("/api/photo", { key: ed.key, data: null });
+  if (!res.ok) { $("edErr").textContent = res.error; return; }
+  PHOTOS.delete(ed.key);
+  if (ed.lay.photo) edSetField(() => { delete ed.lay.photo; });
+  toast(res.message);
+  edFields();
+  edRender();
+  $("devices").dataset.sig = "";
+});
+
+// Save and close
+function edClose() {
+  if (edDirty() && !confirm("Close the editor without saving the changes to the drawing?")) return;
+  $("drawDlg").close();
+  ed = null;
+}
+$("edCancel").addEventListener("click", edClose);
+$("drawDlg").addEventListener("cancel", (e) => { e.preventDefault(); edClose(); });
+$("drawDlg").addEventListener("close", () => { ed = null; edDrag = null; });
+$("edFace").tabIndex = -1;
+$("edSave").addEventListener("click", async () => {
+  $("edErr").textContent = "";
+  $("edSave").disabled = true;
+  const res = await post("/api/layouts", { key: ed.key, layout: ed.lay, mtime: ed.mtime });
+  $("edSave").disabled = false;
+  if (!res.ok) { $("edErr").textContent = res.error; return; }
+  ed.orig = JSON.stringify(ed.lay);
+  $("drawDlg").close();
+  ed = null;
+  toast(res.message);
+  await loadLayouts();
+  await refreshNow();
 });
 
 $("btnQuit").addEventListener("click", async () => {

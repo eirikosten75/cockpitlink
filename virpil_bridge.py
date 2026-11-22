@@ -801,8 +801,198 @@ def load_layouts(config_path: str) -> dict:
     for pid, lay in list(layouts.items()):  # resolve "same_as"
         src = str(lay.get("same_as", "")).upper()
         if src and src in layouts:
-            layouts[pid] = {**layouts[src], **{k: v for k, v in lay.items() if k != "same_as"}}
-    return {"layouts": layouts, "path": str(path), "error": error}
+            layouts[pid] = {**layouts[src], **{k: v for k, v in lay.items() if k != "same_as"}, "shared_with": src}
+    return {"layouts": layouts, "path": str(path), "error": error, "photos": list_photos(config_path),
+            "mtime": file_mtime(layouts_path(config_path))}
+
+
+# Drawings edited in the control panel ------------------------------------------------------
+LAYOUT_KEY_RE = re.compile(r"^[0-9A-Z_]{1,16}$")
+LED_SHAPES = ("btn", "round", "rect")
+PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+MAX_PHOTO_BYTES = 8 * 1024 * 1024
+
+
+def _pct(v, what: str) -> float:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not -50 <= v <= 150:
+        raise ValueError(f"{what} must be a number (percent of the panel face)")
+    v = round(float(v), 1)
+    return int(v) if v == int(v) else v
+
+
+def clean_layout(lay: dict) -> dict:
+    """Checks a drawing sent by the control panel and returns it in the layouts.json form."""
+    if not isinstance(lay, dict):
+        raise ValueError("The drawing must be an object")
+    out: dict = {}
+    title = str(lay.get("title", "")).strip()[:80]
+    if title:
+        out["title"] = title
+    aspect = str(lay.get("aspect", "")).strip()
+    if aspect:
+        m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)", aspect)
+        if not m or float(m.group(1)) <= 0 or float(m.group(2)) <= 0:
+            raise ValueError(f"Invalid aspect '{aspect}' (use width / height, e.g. 1310 / 1490)")
+        out["aspect"] = f"{m.group(1)} / {m.group(2)}"
+    if lay.get("btn") not in (None, ""):
+        btn = lay["btn"]
+        if isinstance(btn, bool) or not isinstance(btn, (int, float)) or not 2 <= btn <= 30:
+            raise ValueError("Button size must be between 2 and 30 % of the panel width")
+        out["btn"] = _pct(btn, "Button size")
+    if lay.get("wide"):
+        out["wide"] = True
+    photo = lay.get("photo")
+    if photo is True:
+        out["photo"] = 0.5
+    elif isinstance(photo, (int, float)) and not isinstance(photo, bool) and photo > 0:
+        out["photo"] = round(min(float(photo), 1.0), 2)  # opacity of the photo behind the drawing
+    deco = []
+    for d in lay.get("deco") or []:
+        if not isinstance(d, dict):
+            raise ValueError("Each box must be an object")
+        box = {k: _pct(d.get(k), f"Box {k}") for k in ("x", "y", "w", "h")}
+        if box["w"] <= 0 or box["h"] <= 0:
+            raise ValueError("A box needs a width and height above 0")
+        box["text"] = str(d.get("text", ""))[:60]
+        deco.append(box)
+    out["deco"] = deco
+    leds = {}
+    for name, v in (lay.get("leds") or {}).items():
+        if not LED_NAME_RE.match(str(name)):
+            raise ValueError(f"Invalid LED name '{name}'")
+        if not isinstance(v, list) or len(v) < 3 or v[2] not in LED_SHAPES:
+            raise ValueError(f"LED '{name}' must be [x, y, shape, label?, below?] with shape btn, round or rect")
+        entry = [_pct(v[0], f"x of {name}"), _pct(v[1], f"y of {name}"), v[2]]
+        label = str(v[3]).strip()[:20] if len(v) > 3 and v[3] else ""
+        below = len(v) > 4 and v[4] == "below"
+        if label or below:
+            entry.append(label)
+        if below:
+            entry.append("below")
+        leds[str(name)] = entry
+    out["leds"] = leds
+    return out
+
+
+def dump_layouts(data: dict) -> str:
+    """layouts.json in the hand-written style: a blank line between the drawings, small ones on one line."""
+    parts = []
+    for k, v in data.items():
+        one = json.dumps(v, ensure_ascii=False, separators=(", ", ": "))
+        if isinstance(v, dict) and len(one) <= 100 and not any(isinstance(x, (dict, list)) for x in v.values()):
+            body = "{ " + one[1:-1] + " }"
+        else:
+            body = dump_config(v).rstrip("\n").replace("\n", "\n  ")
+        parts.append(f"  {json.dumps(k, ensure_ascii=False)}: {body}")
+    return "{\n" + ",\n\n".join(parts) + "\n}\n"
+
+
+def save_layout(config_path: str, key: str, layout: dict, mtime: float | None = None) -> str:
+    """Saves one drawing into layouts.json (next to config.json), keeping the others. A drawing that reuses
+    another one with same_as is saved into that one, so both stay the same. Backs up the old file."""
+    key = str(key).upper()
+    if not LAYOUT_KEY_RE.match(key):
+        raise ValueError(f"Invalid drawing key '{key}'")
+    clean = clean_layout(layout)
+    path = layouts_path(config_path)
+    ensure_layouts_file(config_path)
+    if mtime and path.exists() and abs(file_mtime(path) - float(mtime)) > 0.001:
+        raise ValueError("layouts.json has been changed since the editor was opened. Close the editor, "
+                         "open it again and redo the change.")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError("the file must contain a JSON object")
+    except FileNotFoundError:
+        data = {}
+    except (ValueError, json.JSONDecodeError) as e:
+        raise ValueError(f"layouts.json could not be read ({e}). Fix or delete it first.")
+    existing = {k.upper(): k for k in data}
+    target, note = key, ""
+    raw = data.get(existing.get(key, key))
+    if isinstance(raw, dict) and raw.get("same_as"):
+        src = str(raw["same_as"]).upper()
+        if src in existing:
+            target = src
+            note = f" (shared with {existing[src]} through same_as)"
+            src_title = data[existing[src]].get("title")
+            if src_title and clean.get("title") == raw.get("title"):
+                clean["title"] = src_title
+    real_key = existing.get(target, target)
+    data[real_key] = clean
+    if path.exists():
+        backups = path.with_name("backups")
+        backups.mkdir(exist_ok=True)
+        now = time.time()
+        stamp = f"{time.strftime('%Y%m%d-%H%M%S', time.localtime(now))}-{int(now * 1000) % 1000:03d}"
+        (backups / f"layouts-{stamp}.json").write_bytes(path.read_bytes())
+        for old in sorted(backups.glob("layouts-*.json"))[:-20]:  # keep the latest 20
+            try:
+                old.unlink()
+            except OSError:
+                pass
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(dump_layouts(data), encoding="utf-8")
+    os.replace(tmp, path)
+    log.info("Saved the drawing %s in %s%s", real_key, path, note)
+    return f"Drawing saved in layouts.json{note}."
+
+
+def photos_dir(config_path: str) -> Path:
+    return Path(config_path).with_name("photos")
+
+
+def list_photos(config_path: str) -> list[str]:
+    try:
+        return sorted(p.stem.upper() for p in photos_dir(config_path).iterdir()
+                      if p.suffix.lower() in PHOTO_TYPES.values() and LAYOUT_KEY_RE.match(p.stem.upper()))
+    except OSError:
+        return []
+
+
+def find_photo(config_path: str, key: str) -> Path | None:
+    key = str(key).upper()
+    if not LAYOUT_KEY_RE.match(key):
+        return None
+    for ext in PHOTO_TYPES.values():
+        p = photos_dir(config_path) / f"{key}{ext}"
+        if p.exists():
+            return p
+    return None
+
+
+def save_photo(config_path: str, key: str, data_url: str | None) -> str:
+    """Stores (or with no data removes) the background photo for a drawing in the photos folder.
+    The photo stays on this PC – it is not part of layouts.json."""
+    import base64
+    import binascii
+    key = str(key).upper()
+    if not LAYOUT_KEY_RE.match(key):
+        raise ValueError(f"Invalid drawing key '{key}'")
+    old = find_photo(config_path, key)
+    if not data_url:
+        if old:
+            old.unlink()
+            log.info("Removed the photo for drawing %s", key)
+            return "Photo removed."
+        return "There was no photo."
+    m = re.fullmatch(r"data:(image/[a-z]+);base64,([A-Za-z0-9+/=\s]+)", str(data_url))
+    if not m or m.group(1) not in PHOTO_TYPES:
+        raise ValueError("The photo must be a JPEG, PNG or WebP image")
+    try:
+        raw = base64.b64decode(m.group(2))
+    except binascii.Error:
+        raise ValueError("The photo could not be read")
+    if len(raw) > MAX_PHOTO_BYTES:
+        raise ValueError("The photo is too large (max 8 MB)")
+    folder = photos_dir(config_path)
+    folder.mkdir(exist_ok=True)
+    if old:
+        old.unlink()
+    (folder / f"{key}{PHOTO_TYPES[m.group(1)]}").write_bytes(raw)
+    log.info("Saved the photo for drawing %s in %s", key, folder)
+    return "Photo saved (only on this PC)."
 
 
 def file_mtime(p: Path) -> float:
@@ -1435,8 +1625,29 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                 elif path == "/api/live":
                     watch = [w for w in str(p.get("watch", "")).split(",") if w]
                     self._reply(200, bridge.live(watch))
+                elif path == "/api/layouts" and self.command == "POST":
+                    if not self._from_ui():
+                        return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
+                    try:
+                        msg = save_layout(bridge.config_path, p["key"], p["layout"], p.get("mtime"))
+                        self._reply(200, {"ok": True, "message": msg})
+                    except OSError as e:
+                        self._reply(500, {"ok": False, "error": f"Could not write layouts.json: {e}"})
                 elif path == "/api/layouts":
                     self._reply(200, load_layouts(bridge.config_path))
+                elif path == "/api/photo" and self.command == "POST":
+                    if not self._from_ui():
+                        return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
+                    try:
+                        self._reply(200, {"ok": True, "message": save_photo(bridge.config_path, p["key"], p.get("data"))})
+                    except OSError as e:
+                        self._reply(500, {"ok": False, "error": f"Could not save the photo: {e}"})
+                elif path == "/api/photo":
+                    photo = find_photo(bridge.config_path, p.get("key", ""))
+                    if not photo:
+                        return self._reply(404, {"ok": False, "error": "No photo"})
+                    ctype = {v: k for k, v in PHOTO_TYPES.items()}[photo.suffix.lower()]
+                    self._send(200, photo.read_bytes(), ctype)
                 elif path == "/api/config" and self.command == "GET":
                     self._reply(200, bridge.config_for_ui())
                 elif path == "/api/rules" and self.command == "POST":

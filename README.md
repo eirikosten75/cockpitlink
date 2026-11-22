@@ -160,6 +160,22 @@ names). Tested in MSFS 2024.
 
 ## 5. Panel drawings (layouts.json)
 
+**The easy way: Edit drawing.** Every device card in the control panel has an **Edit drawing** button (**Make
+drawing** if the panel has none yet). In the editor you can:
+
+- drag the LEDs into place (or select one and use the arrow keys, with Shift for larger steps), and change their shape
+  and label;
+- put LEDs that are not on the drawing yet onto it, one by one or all at once in a grid;
+- draw boxes for switches, knobs and levers (drag the blue corner to change the size);
+- load a photo of your panel and trace it: the LEDs and boxes are drawn on top of the photo, and **Match photo shape**
+  gives the drawing the same proportions. The photo stays on your PC in the `photos` folder next to `config.json`; if
+  you like, it can be shown behind the drawing in the control panel too.
+
+**Save drawing** writes `layouts.json` (the old one is copied to `backups` first). **Undo** (Ctrl+Z) takes back
+changes made since the editor was opened.
+
+**By hand.** You can also edit the file yourself:
+
 The drawings of the panels live in `layouts.json` next to `config.json`. If the file is missing, the bridge writes
 out its built-in default on start, so you always have one to edit. Changes show up in the control panel within a
 second – no rebuild or restart needed. If the file is invalid, the built-in drawings are used and the control panel
@@ -186,10 +202,8 @@ Each drawing is keyed by the device's USB PID (the same `pid` as in `config.json
 - `aspect`: width / height of the panel face. `btn`: button width in percent of the face width (default 10.5).
 - `deco`: outlines for switches, knobs, levers etc. (`x`, `y`, `w`, `h` in percent).
 - `same_as`: reuse another drawing (e.g. left- and right-hand versions of the same panel).
+- `photo` (set by the editor): show the photo from the `photos` folder behind the drawing, with this opacity (0–1).
 - LEDs that are not in the drawing are shown in a grid under it.
-
-A quick way to make a drawing for a new panel: take a straight-on photo, measure each button's centre in pixels, and
-divide by the panel's width/height in the photo.
 
 ## 6. API
 

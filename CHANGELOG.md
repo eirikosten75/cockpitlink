@@ -6,6 +6,13 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Drawing editor in the control panel (**Edit drawing** / **Make drawing** on each device card): drag LEDs into
+  place, change shape and label, draw boxes for switches and knobs, and trace a photo of your own panel. Saves to
+  `layouts.json` with a backup; photos stay on your PC in the `photos` folder.
+
 ## [1.4] – 2026-11-22
 
 ### Added
