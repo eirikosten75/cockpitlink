@@ -9,7 +9,7 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 
 ## ⬇️ Download
 
-**[Download the latest version (VirpilLedBridge-v1.3.2.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v1.3.2/VirpilLedBridge-v1.3.2.zip)**
+**[Download the latest version (VirpilLedBridge-v1.3.3.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v1.3.3/VirpilLedBridge-v1.3.3.zip)**
 – or see all versions under [Releases](https://github.com/eirikosten75/virpil-led-bridge/releases).
 
 The zip contains `VirpilLedBridge.exe` (no Python needed), an example `config.json`, `layouts.json`, this README and
