@@ -6,6 +6,36 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Control Panel #3** in the drawing library, marked *unverified*: its own drawing with its button labels (B1–B4,
+  B8–B13), and LED numbers assumed to match the SharKa-50 Panel, which has the same controls. Its USB PID is not known
+  yet, so **Find new devices** recognises it by its product name ("VPC Control Panel 3"). Owners: please check the
+  LEDs with *Walk through one by one* and send the PID with the panel information form.
+- **VMAX Prime Throttle** in the drawing library, marked *unverified*: drawn from a picture with its six KEYBOARD
+  buttons, LED numbers assumed to match the MongoosT-50CM3 throttle (05–10). Other lights (EMERG B7, the encoder
+  rings) may also be LEDs; find them with *Try command number*. Recognised by its product name ("VPC VMAX Prime
+  Throttle").
+- **Use a library drawing** in the *Drawings* tab: choose any library drawing for a panel by hand – for a panel the
+  bridge does not recognise, or a module you have swapped. Optionally adds the library's LED names as extra names
+  (existing names and rules keep working).
+- Spots in a drawing that no LED on the panel has yet are shown dashed, and *Setup* lists the names the drawing
+  expects: select an LED and click a name.
+- **Vector Gear MCP, Vector Lighting MCP, Vector Engine MCP** and the **Constellation VEGA Yoke Handle** in the drawing
+  library, drawn from pictures and marked *unverified*. Their PIDs, product names and LED numbers are not known, so
+  they are chosen by hand with *Use a library drawing*.
+- **Stick bases in Find new devices:** bases without LEDs of their own are no longer left out. They are listed (not
+  ticked) with the four LEDs a grip can have, `grip_led1`–`grip_led4` (commands 01–04, the grip LEDs in the VPC
+  profile). Tested: a grip LED on a WarBRD-D base answered to command 01.
+- **VPC WarBRD Grip** in the drawing library, *verified*: one LED (grip LED 01), checked on a real grip. When a stick
+  base's VPC profile says the grip is a VPC WarBRD Grip, **Find new devices** uses this drawing and LED name straight
+  away.
+- **FLNKR Grip** in the drawing library, drawn from a picture and marked *unverified*: its two LEDs are assumed to be
+  grip LEDs 01 and 02. A grip can sit on different bases, so it is chosen by hand with *Use a library drawing*.
+- Library drawings can be recognised by product name alone (`"pids": {}`), for panels whose PID is not known yet, or
+  be chosen by hand only (no PIDs and no product names, with an optional `"key"`).
+
 ## [1.7.1] – 2026-11-23
 
 ### Changed

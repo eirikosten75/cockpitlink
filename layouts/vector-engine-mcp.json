@@ -1,0 +1,24 @@
+{
+  "title": "Vector Engine MCP",
+  "key": "VECTOR_ENGINE",
+  "status": "unverified",
+  "checked": "Drawn from a product picture, not checked on a real module. A module for the Vector Flight Yoke Base with lit rings around the three switches and five lamps for the MODE positions: its USB PID, product name and LED numbers are not known, so choose this drawing by hand and give the LEDs these names in Setup.",
+  "pids": {},
+  "product_names": [],
+  "aspect": "400 / 610",
+  "btn": 9.5,
+  "deco": [
+    { "x": 18, "y": 2, "w": 64, "h": 6, "text": "ENG" },
+    { "x": 40, "y": 74, "w": 26, "h": 17, "text": "MODE" }
+  ],
+  "leds": {
+    "mst1": [17.5, 36.9, "btn", "MST1"],
+    "mst2": [40, 36.9, "btn", "MST2"],
+    "eng_both": [67.5, 36.9, "btn", "BOTH"],
+    "mode_off": [27, 73.3, "rect", "OFF"],
+    "mode_crank": [35.5, 63.9, "rect", "CRANK"],
+    "mode_norm": [50, 60.7, "rect", "NORM"],
+    "mode_cont": [63.8, 62.3, "rect", "CONT"],
+    "mode_start": [73.8, 68, "rect", "START"]
+  }
+}

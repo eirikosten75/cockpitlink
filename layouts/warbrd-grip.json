@@ -1,0 +1,21 @@
+{
+  "title": "VPC WarBRD Grip",
+  "key": "WARBRD_GRIP",
+  "status": "verified",
+  "checked": "LED number checked on a real grip on a WarBRD-D base: the green LED at the top is grip LED 01 (commands 02-04 do nothing), November 2026. The drawing itself is made from a picture. A grip can sit on different bases; the bridge picks this drawing when the base's VPC profile says the grip is a VPC WarBRD Grip.",
+  "pids": {},
+  "product_names": ["VPC WarBRD Grip"],
+  "commands": { "grip_led1": "01" },
+  "aspect": "300 / 280",
+  "deco": [
+    { "x": 14, "y": 3.6, "w": 64, "h": 35.7, "text": "" },
+    { "x": 37, "y": 7.1, "w": 22, "h": 25, "text": "HAT" },
+    { "x": 17, "y": 19.6, "w": 11, "h": 12.5, "text": "" },
+    { "x": 4, "y": 51.8, "w": 9, "h": 26.8, "text": "TRIG" },
+    { "x": 23, "y": 58.9, "w": 15, "h": 21.4, "text": "HAT" },
+    { "x": 44, "y": 60, "w": 30, "h": 30, "text": "WarBRD GRIP" }
+  ],
+  "leds": {
+    "grip_led1": [25.3, 15, "round", "LED"]
+  }
+}

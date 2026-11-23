@@ -1,0 +1,23 @@
+{
+  "title": "FLNKR Grip",
+  "key": "FLNKR_GRIP",
+  "status": "unverified",
+  "checked": "Drawn from a product picture, not checked on a real grip. The two LEDs at the top are assumed to be grip LEDs 01 and 02 (grip LEDs use commands 01-04; tested on another grip, where the LED was 01). A grip can sit on different bases, so choose this drawing by hand for the base it is on.",
+  "pids": {},
+  "product_names": [],
+  "commands": { "grip_led1": "01", "grip_led2": "02" },
+  "aspect": "310 / 245",
+  "deco": [
+    { "x": 8, "y": 15, "w": 20, "h": 22, "text": "" },
+    { "x": 38, "y": 20, "w": 28, "h": 32, "text": "HAT" },
+    { "x": 72, "y": 6, "w": 20, "h": 24, "text": "" },
+    { "x": 4, "y": 50, "w": 32, "h": 38, "text": "HAT" },
+    { "x": 70, "y": 40, "w": 22, "h": 32, "text": "MANVR" },
+    { "x": 66, "y": 76, "w": 14, "h": 8, "text": "TC" },
+    { "x": 34, "y": 88, "w": 32, "h": 9, "text": "A/P TRIGGER" }
+  ],
+  "leds": {
+    "grip_led1": [44, 9, "rect"],
+    "grip_led2": [57, 9, "rect"]
+  }
+}

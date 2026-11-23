@@ -1,0 +1,24 @@
+{
+  "title": "Constellation VEGA Yoke Handle",
+  "key": "VEGA_YOKE",
+  "status": "unverified",
+  "checked": "Drawn from a product picture, not checked on a real yoke. Six RGB buttons, three on each side of the centre plate: the USB PID, product name and LED numbers are not known, so choose this drawing by hand and give the LEDs these names in Setup.",
+  "pids": {},
+  "product_names": [],
+  "aspect": "850 / 475",
+  "btn": 6.5,
+  "wide": true,
+  "deco": [
+    { "x": 2, "y": 3, "w": 27, "h": 90, "text": "LEFT GRIP" },
+    { "x": 71, "y": 3, "w": 27, "h": 90, "text": "RIGHT GRIP" },
+    { "x": 39, "y": 28, "w": 22, "h": 68, "text": "" }
+  ],
+  "leds": {
+    "l1": [34.1, 41, "btn", "L1"],
+    "l2": [34.1, 54.7, "btn", "L2"],
+    "l3": [34.1, 67.4, "btn", "L3"],
+    "r1": [65.3, 41, "btn", "R1"],
+    "r2": [65.3, 54.7, "btn", "R2"],
+    "r3": [65.3, 67.4, "btn", "R3"]
+  }
+}

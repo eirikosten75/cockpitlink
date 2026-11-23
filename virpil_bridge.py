@@ -922,9 +922,17 @@ def library_dir() -> Path:
     return resource_dir() / "layouts"
 
 
+def library_key(entry_id: str) -> str:
+    """The drawing key for a library panel whose PID is not known yet (found by product name only)."""
+    return (re.sub(r"[^A-Z0-9]+", "_", entry_id.upper()).strip("_") or "PANEL")[:16]
+
+
 def load_library() -> dict:
-    """The panel drawings in the library: {"by_pid": {PID: entry}, "by_name": {product name: entry}, "errors": []}.
-    entry = {"id", "title", "status", "checked", "pids": {PID: title}, "product_names", "commands", "drawing"}."""
+    """The panel drawings in the library: {"by_pid": {drawing key: entry}, "by_name": {product name: entry},
+    "errors": []}. The drawing key is the USB PID, or for a panel whose PID is not known yet (only its product
+    name), a key made from the file name, e.g. CONTROL_PANEL_3.
+    entry = {"id", "key", "title", "status", "checked", "pids": {PID: title}, "product_names", "commands",
+    "drawing"}."""
     by_pid, by_name, errors = {}, {}, []
     folder = library_dir()
     for f in sorted(folder.glob("*.json")) if folder.is_dir() else []:
@@ -932,8 +940,11 @@ def load_library() -> dict:
             with open(f, encoding="utf-8") as fh:
                 d = json.load(fh)
             pids = {str(k).upper(): str(v) for k, v in (d.get("pids") or {}).items()}
-            if not pids or not all(re.fullmatch(r"[0-9A-F]{4}", p) for p in pids):
+            if not all(re.fullmatch(r"[0-9A-F]{4}", p) for p in pids):
                 raise ValueError("'pids' must map USB PIDs (4 hex digits) to titles")
+            own_key = str(d.get("key", "")).upper()
+            if own_key and not LAYOUT_KEY_RE.match(own_key):
+                raise ValueError("'key' must be 1-16 capital letters, digits or _")
             status = d.get("status", "unverified")
             if status not in LIBRARY_STATUSES:
                 raise ValueError(f"'status' must be one of {', '.join(LIBRARY_STATUSES)}")
@@ -946,10 +957,14 @@ def load_library() -> dict:
             errors.append(f"{f.name}: {e}")
             log.warning("Library drawing %s could not be read: %s", f.name, e)
             continue
-        entry = {"id": f.stem, "title": d.get("title", f.stem), "status": status, "checked": d.get("checked", ""),
-                 "pids": pids, "product_names": [str(n) for n in d.get("product_names", [])],
-                 "commands": commands, "drawing": drawing}
-        for p in pids:
+        names = [str(n) for n in d.get("product_names", [])]
+        entry = {"id": f.stem, "key": next(iter(pids)) if pids else (own_key or library_key(f.stem)),
+                 "title": d.get("title", f.stem), "status": status, "checked": d.get("checked", ""),
+                 "pids": pids, "product_names": names, "commands": commands, "drawing": drawing,
+                 # Without PIDs and product names the panel cannot be recognised: it can only be chosen by hand
+                 # (Drawings tab → Use a library drawing), e.g. modules that are swapped on one base.
+                 "manual": not pids and not names}
+        for p in pids or [entry["key"]]:
             by_pid.setdefault(p, entry)
         for n in entry["product_names"]:
             by_name.setdefault(_norm_name(n), entry)
@@ -1000,7 +1015,9 @@ def load_layouts(config_path: str) -> dict:
             del own[pid]
     layouts = {}
     for pid, entry in lib["by_pid"].items():
-        info = {"id": entry["id"], "status": entry["status"], "checked": entry["checked"], "pids": list(entry["pids"])}
+        info = {"id": entry["id"], "key": entry["key"], "title": entry["title"], "status": entry["status"],
+                "checked": entry["checked"], "pids": list(entry["pids"]), "product_names": entry["product_names"],
+                "manual": entry["manual"], "led_names": list(entry["commands"])}
         layouts[pid] = {**_library_drawing(entry, pid), "source": "library", "library": info}
     for pid, lay in own.items():
         base = layouts.get(pid)
@@ -1359,8 +1376,18 @@ def vpc_profile_leds() -> dict[str, dict]:
                     and tag.isdigit() and 1 <= int(tag) <= 54:
                 cmds.add(f"{int(tag):02d}")
         name = re.sub(r"^\d{8}-\d{6}-", "", f.stem).strip()
-        newest[pid] = (mtime, {"name": name, "cmds": sorted(cmds)})
+        # stk_led_rgb_1..4: LEDs in a grip on the base (commands 01-04). The profile has them for every stick base,
+        # whether the grip has LEDs or not, so they only mark the device as a base that may have grip LEDs.
+        grip = any(el.tag.startswith("stk_led_rgb_") for el in xml.iter())
+        # The grip chosen in the VPC Configuration Tool, e.g. "[FLIGHT GRIP] VPC WarBRD Grip" -> "VPC WarBRD Grip".
+        g = xml.find(".//pfl_grip")
+        grip_name = re.sub(r"^\[[^\]]*\]\s*", "", str(g.get("Data", "")) if g is not None else "").strip()
+        newest[pid] = (mtime, {"name": name, "cmds": sorted(cmds), "grip": grip, "grip_name": grip_name})
     return {pid: info for pid, (_, info) in newest.items()}
+
+
+# The LEDs a grip can have, as named for a stick base found by Find new devices (commands 01-04).
+GRIP_LED_CMDS = {f"grip_led{i}": f"{i:02d}" for i in range(1, 5)}
 
 
 DEFAULT_BASE_CONFIG = {
@@ -1430,7 +1457,13 @@ def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
         lib = None if known else (library["by_pid"].get(pid) or library["by_name"].get(_norm_name(name)))
         if lib and not lib["commands"]:
             lib = None
-        if prof is not None and not prof["cmds"] and not known and not lib:
+        grip_base = bool(prof is not None and not prof["cmds"] and prof.get("grip"))
+        if grip_base and not known and not lib and prof.get("grip_name"):
+            # The VPC profile says which grip is on the base: use its library drawing and LED names if we have it.
+            g = library["by_name"].get(_norm_name(prof["grip_name"]))
+            if g and g["commands"]:
+                lib, grip_base = g, False
+        if prof is not None and not prof["cmds"] and not known and not lib and not grip_base:
             log.info("Found %s (PID %s), but its VPC profile has no LEDs – left out.", name, pid)
             continue
         if known:
@@ -1445,8 +1478,14 @@ def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
             key = _device_key(name, taken)
             spec = {"name": name, "vid": VIRPIL_VID, "pid": pid, "leds": dict(lib["commands"])}
             if pid not in lib["pids"]:
-                spec["layout"] = next(iter(lib["pids"]))
+                spec["layout"] = lib["key"]  # another PID, or a panel known only by its product name
             source = "library" if lib["status"] == "verified" else "library_unverified"
+        elif grip_base:
+            # A stick (or other) base with no LEDs of its own: the grip on it may have up to four (commands 01-04).
+            # Grips are swapped between bases, so which ones exist is checked with Walk through one by one.
+            key = _device_key(name, taken)
+            spec = {"name": name, "vid": VIRPIL_VID, "pid": pid, "leds": dict(GRIP_LED_CMDS)}
+            source = "grip"
         else:
             key = _device_key(name, taken)
             cmds = prof["cmds"] if prof else FALLBACK_LED_CMDS
@@ -1501,7 +1540,9 @@ SOURCE_TEXT = {"known": "known panel", "library": "LED names and drawing from th
                "library_unverified": "LED names and drawing from the library, not yet checked on a real panel – "
                                      "check them with LED setup",
                "profile": "LEDs from the VPC profile",
-               "guess": "no VPC profile, LEDs 05-24 guessed – check them with LED setup"}
+               "guess": "no VPC profile, LEDs 05-24 guessed – check them with LED setup",
+               "grip": "a base without LEDs of its own – adds the grip's LEDs 01-04 (many grips have none; "
+                       "check which ones yours has with Walk through one by one)"}
 
 
 def make_starter_config(config_path: str) -> dict:
@@ -1910,6 +1951,47 @@ class Bridge:
 
         return self._edit_config(change)
 
+    def set_device_layout(self, device: str, key: str | None, take_names: bool = False) -> str:
+        """Chooses which drawing a device uses: a library drawing (by its key) or, with no key, the device's own
+        (by its PID). With take_names, the library's LED names are added to the device as extra names for the same
+        command numbers – existing names (and the rules that use them) are kept."""
+        key = str(key or "").upper()
+        lib_entry = None
+        if key:
+            if not LAYOUT_KEY_RE.match(key):
+                raise ValueError(f"Invalid drawing key '{key}'")
+            if key not in load_layouts(self.config_path)["layouts"]:
+                raise ValueError(f"There is no drawing called '{key}'")
+            lib_entry = load_library()["by_pid"].get(key)
+
+        def change(cfg: dict) -> str:
+            if device not in cfg["devices"]:
+                raise ValueError(f"Unknown device '{device}'")
+            spec = cfg["devices"][device]
+            name = spec.get("name", device)
+            if not key or key == str(spec["pid"]).upper():
+                spec.pop("layout", None)
+                msg = f"{name} uses its own drawing again (PID {str(spec['pid']).upper()})."
+            else:
+                spec["layout"] = key
+                msg = f"{name} now uses the drawing “{lib_entry['title'] if lib_entry else key}”."
+            if take_names and lib_entry and lib_entry["commands"]:
+                leds: dict = spec["leds"]
+                added, clash = [], []
+                for n, c in lib_entry["commands"].items():
+                    if n not in leds:
+                        leds[n] = c
+                        added.append(n)
+                    elif leds[n] != c:
+                        clash.append(n)
+                if added:
+                    msg += f" LED names added from the library: {', '.join(added)}."
+                if clash:
+                    msg += f" Already used for other LEDs, so not added: {', '.join(clash)}."
+            return msg
+
+        return self._edit_config(change)
+
     def find_devices(self) -> list[dict]:
         """The Virpil devices plugged in now, for 'Find new devices' (without the full config entries)."""
         return [{k: v for k, v in d.items() if k != "spec"} | {"source_text": SOURCE_TEXT.get(d["source"], "")}
@@ -2159,6 +2241,14 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                             self._reply(200, {"ok": True, "message": msg})
                         except OSError as e:
                             self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
+                elif path == "/api/devices/layout" and self.command == "POST":
+                    if not self._from_ui():
+                        return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
+                    try:
+                        msg = bridge.set_device_layout(p["device"], p.get("layout"), bool(p.get("take_names")))
+                        self._reply(200, {"ok": True, "message": msg})
+                    except OSError as e:
+                        self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
                 elif path == "/api/devices/find":
                     self._reply(200, {"devices": bridge.find_devices()})
                 elif path == "/api/devices/add" and self.command == "POST":

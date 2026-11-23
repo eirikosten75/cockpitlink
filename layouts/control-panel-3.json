@@ -1,0 +1,36 @@
+{
+  "title": "Control Panel #3",
+  "status": "unverified",
+  "checked": "Drawn from a product picture, not checked on a real panel. The LED command numbers are assumed to match the SharKa-50 Panel by position (same controls): left 2x2 block B1-B4, right B8-B11 and B12-B13. The USB PID is not known yet, so the panel is recognised by its product name.",
+  "pids": {},
+  "product_names": ["VPC Control Panel 3"],
+  "commands": {
+    "b8": "05", "b9": "06", "b10": "07", "b11": "08",
+    "b13": "09", "b12": "10",
+    "b2": "11", "b1": "12", "b3": "13", "b4": "14"
+  },
+  "aspect": "397 / 412",
+  "btn": 10.5,
+  "deco": [
+    { "x": 8, "y": 1, "w": 84, "h": 21, "text": "LEVERS" },
+    { "x": 30, "y": 25, "w": 49, "h": 20.5, "text": "B5 · B6 · B7 · L/R · T1" },
+    { "x": 81, "y": 25, "w": 14, "h": 19, "text": "MASTER ARM" },
+    { "x": 4, "y": 50, "w": 36, "h": 11, "text": "TOGGLES" },
+    { "x": 40, "y": 63, "w": 10, "h": 9, "text": "ENC" },
+    { "x": 83, "y": 61, "w": 10, "h": 9, "text": "ENC" },
+    { "x": 6, "y": 71, "w": 32, "h": 23, "text": "MODE 1–5" },
+    { "x": 40, "y": 84, "w": 55, "h": 12, "text": "T5 · T6 · T7 · T8" }
+  ],
+  "leds": {
+    "b1": [9.7, 29.6, "btn", "B1"],
+    "b3": [23, 29.1, "btn", "B3"],
+    "b2": [9.7, 41.7, "btn", "B2"],
+    "b4": [23, 41.7, "btn", "B4"],
+    "b8": [47.6, 54.4, "btn", "B8"],
+    "b9": [60, 54.4, "btn", "B9"],
+    "b10": [71.8, 54.4, "btn", "B10"],
+    "b11": [84.3, 54.4, "btn", "B11"],
+    "b12": [60, 66, "btn", "B12"],
+    "b13": [71.8, 66, "btn", "B13"]
+  }
+}

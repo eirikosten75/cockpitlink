@@ -1,0 +1,23 @@
+{
+  "title": "Vector Lighting MCP",
+  "key": "VECTOR_LIGHTS",
+  "status": "unverified",
+  "checked": "Drawn from a product picture, not checked on a real module. A module for the Vector Flight Yoke Base with a lit ring around each of the six switches: its USB PID, product name and LED numbers are not known, so choose this drawing by hand and give the LEDs these names in Setup.",
+  "pids": {},
+  "product_names": [],
+  "aspect": "410 / 610",
+  "btn": 9,
+  "deco": [
+    { "x": 18, "y": 2, "w": 64, "h": 6, "text": "EXT LT" },
+    { "x": 14, "y": 36, "w": 72, "h": 7, "text": "OFF" },
+    { "x": 18, "y": 80, "w": 72, "h": 7, "text": "OFF · RETRACT · OFF" }
+  ],
+  "leds": {
+    "nav": [26.8, 29.2, "btn", "STR & NAV"],
+    "beacon": [50, 29.5, "btn", "BEACON"],
+    "wing": [72, 29.8, "btn", "WING"],
+    "rwy_turnoff": [31.7, 70.5, "btn", "RWY TURNOFF"],
+    "land": [54.9, 70.8, "btn", "LAND"],
+    "taxi": [76.8, 71.1, "btn", "TAXI"]
+  }
+}

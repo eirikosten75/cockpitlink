@@ -1,0 +1,33 @@
+{
+  "title": "VMAX Prime Throttle",
+  "status": "unverified",
+  "checked": "Drawn from a product picture, not checked on a real throttle. Only the six KEYBOARD buttons are included; their command numbers (05-10, row by row) are assumed to match the MongoosT-50CM3 throttle's B1-B6. Other lights (EMERG B7, the E1/E2 rings, MODE) may also be LEDs but their numbers are not known - find them with Setup > Try command number. The USB PID is not known yet, so the throttle is recognised by its product name.",
+  "pids": {},
+  "product_names": ["VPC VMAX Prime Throttle"],
+  "commands": {
+    "b1": "05", "b2": "06", "b3": "07",
+    "b4": "08", "b5": "09", "b6": "10"
+  },
+  "aspect": "428 / 378",
+  "btn": 9.5,
+  "deco": [
+    { "x": 5, "y": 1, "w": 61, "h": 34, "text": "THROTTLE · MAX – IDLE" },
+    { "x": 70, "y": 3, "w": 17, "h": 32, "text": "UP · MVR · DN" },
+    { "x": 3, "y": 44, "w": 42, "h": 30, "text": "" },
+    { "x": 46, "y": 40, "w": 18, "h": 22, "text": "EMERG · B7" },
+    { "x": 65, "y": 41, "w": 24, "h": 19, "text": "T1 · T2 · OFF" },
+    { "x": 52, "y": 63, "w": 12, "h": 11, "text": "E1" },
+    { "x": 75, "y": 63, "w": 12, "h": 11, "text": "E2" },
+    { "x": 2, "y": 79, "w": 12, "h": 15, "text": "APU" },
+    { "x": 17, "y": 77, "w": 31, "h": 21, "text": "MODE 1–5" },
+    { "x": 51, "y": 76, "w": 47, "h": 22, "text": "T3 · T4 · T5" }
+  ],
+  "leds": {
+    "b1": [9.6, 52.9, "btn"],
+    "b2": [23.6, 52.9, "btn", "KEYBOARD"],
+    "b3": [37.4, 52.9, "btn"],
+    "b4": [9.6, 66.1, "btn"],
+    "b5": [23.6, 66.1, "btn"],
+    "b6": [37.4, 66.1, "btn"]
+  }
+}

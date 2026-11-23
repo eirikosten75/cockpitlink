@@ -235,6 +235,14 @@
   }
   .ed .ed-side input[type=number] { width: 76px; }
   .ed-head select { width: auto !important; }
+  .ed-lib { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; font-size: 13px; padding: 8px 10px;
+            border: 1px dashed var(--border); border-radius: 10px; }
+  .ed-lib > span:first-child { font-weight: 600; }
+  .ed-lib select { width: auto !important; max-width: 100%; }
+  .ed-lib label { display: inline-flex; gap: 6px; align-items: center; }
+  .ed-lib .hint { color: var(--muted); font-size: 12px; flex-basis: 100%; margin: 0; }
+  .led.slot { opacity: .55; }
+  .setup .slots .chip { cursor: pointer; padding: 1px 8px; }
   .ed-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
   .ed-head small { color: var(--muted); }
   .ed-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
@@ -373,6 +381,14 @@
       <div class="ed">
         <div class="ed-head"><h3 id="drawTitle">Drawings</h3>
           <select id="edDevice" aria-label="Panel to draw"></select><small id="edKey"></small></div>
+        <div class="ed-lib" id="edLib">
+          <span>Use a library drawing</span>
+          <select id="edLibSel" aria-label="Library drawing for this panel"></select>
+          <label id="edLibNamesLbl" title="Adds the library's LED names to this panel as extra names, so the drawing finds the LEDs. Existing names and rules are kept.">
+            <input type="checkbox" id="edLibNames" checked> also add its LED names</label>
+          <button type="button" class="small" id="edLibUse">Use</button>
+          <p class="hint" id="edLibHint"></p>
+        </div>
         <div class="ed-tools">
           <button type="button" class="small" id="edAddBox" title="Outline of a switch, knob or group of buttons">+ Box</button>
           <button type="button" class="small" id="edArrange" title="Put the LEDs that are not on the drawing in a grid">Place the rest in a grid</button>
@@ -698,6 +714,25 @@ function buildDevice(dev) {
         el.appendChild(l);
       }
     }
+    // Spots in the drawing that no LED on this device has yet: shown dashed, so you see which names to give.
+    const devNames = new Set(dev.leds.flatMap((l) => l.names));
+    for (const [name, v] of Object.entries(layout.leds)) {
+      if (devNames.has(name)) continue;
+      const [x, y, shape, label, labelPos] = v;
+      const el = document.createElement("div");
+      el.className = `led ${shape} unknown slot`;
+      el.setAttribute("aria-hidden", "true");
+      el.title = `No LED called “${name}” on this panel yet – give an LED this name in Setup.`;
+      Object.assign(el.style, { left: x + "%", top: y + "%" });
+      if (layout.btn && shape === "btn") el.style.width = layout.btn + "%";
+      if (label) {
+        const l = document.createElement("span");
+        l.className = "lbl" + (labelPos === "below" ? " below" : "");
+        l.textContent = label;
+        el.appendChild(l);
+      }
+      face.appendChild(el);
+    }
     card.appendChild(face);
     if (unplaced.length) card.appendChild(buildGrid(dev, unplaced, "Not placed on the drawing"));
   } else {
@@ -792,6 +827,31 @@ function buildSetup(dev) {
       <span class="hint walkpos" style="margin:0"></span>
     </div>`;
   box.querySelector(".devname").value = dev.name;
+  const drawing = LAYOUTS[layoutKey(dev)];
+  const haveNames = new Set(dev.leds.flatMap((l) => l.names));
+  const wanted = drawing ? Object.keys(drawing.leds || {}).filter((n) => !haveNames.has(n)) : [];
+  if (wanted.length) {
+    const bar = document.createElement("div");
+    bar.className = "bar slots";
+    bar.innerHTML = `<span class="hint" style="margin:0">Names in the drawing without an LED yet – select an LED, then click a name:</span>`;
+    for (const n of wanted) {
+      const c = document.createElement("button");
+      c.type = "button";
+      c.className = "chip";
+      c.textContent = n;
+      c.addEventListener("click", () => {
+        const row = box.querySelector(".row.active");
+        if (!row) { toast("Click an LED first (in the drawing or the list), then the name.", true); return; }
+        const inp = row.querySelector("input");
+        const cur = inp.value.split(",").map((x) => x.trim()).filter(Boolean);
+        inp.value = cur.length && cur.every((x) => /^led\d+$/.test(x)) ? [...cur, n].join(", ") : (cur.length ? [...cur, n].join(", ") : n);
+        inp.dispatchEvent(new Event("input"));
+        inp.focus();
+      });
+      bar.appendChild(c);
+    }
+    box.querySelector(".rows").before(bar);
+  }
   const rows = box.querySelector(".rows");
   for (const led of dev.leds) {
     const row = document.createElement("div");
@@ -1286,7 +1346,8 @@ async function loadFind() {
   for (const d of devs) {
     const lab = document.createElement("label");
     lab.className = d.in_config ? "added" : "";
-    lab.innerHTML = `<input type="checkbox" value="${esc(d.pid)}" ${d.in_config ? "disabled" : "checked"}>
+    // Bases whose only LEDs may be in the grip are not ticked: many grips have no LEDs.
+    lab.innerHTML = `<input type="checkbox" value="${esc(d.pid)}" ${d.in_config ? "disabled" : d.source === "grip" ? "" : "checked"}>
       <span><b>${esc(d.name)}</b> <small>PID ${esc(d.pid)} · ${d.n_leds} LEDs · ${d.in_config ? "already added as “" + esc(d.key) + "”" : esc(d.source_text)}</small></span>`;
     list.appendChild(lab);
   }
@@ -1372,8 +1433,55 @@ function openDrawEditor(devId) {
     return `<option value="${esc(g.devs[0].id)}">${esc(label)}</option>`;
   }).join("");
   $("edDevice").value = groups.find((g) => g.devs.some((d) => d.id === devId))?.devs[0].id ?? devId;
+  edLibFill(dev);
   showTab("drawings");
 }
+
+// ---- Use a library drawing for this panel ----
+function libraryEntries() {
+  const seen = new Map();
+  for (const lay of Object.values(LAYOUTS)) {
+    const info = lay.library;
+    if (info && !seen.has(info.id)) seen.set(info.id, info);
+  }
+  return [...seen.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+function edLibFill(dev) {
+  const sel = $("edLibSel");
+  const cur = layoutKey(dev), own = String(dev.pid).toUpperCase();
+  const entries = libraryEntries();
+  const curEntry = entries.find((e) => e.key === cur || e.pids.includes(cur));
+  let html = `<option value="">This panel's own drawing (PID ${esc(own)})</option>`;
+  if (!curEntry && cur !== own) html += `<option value="${esc(cur)}">Drawing ${esc(cur)} (in use now)</option>`;
+  html += entries.map((e) => `<option value="${esc(e.key)}">${esc(e.title)} – ${e.status === "verified" ? "verified" : "unverified"}${e.manual ? " · choose by hand" : ""}</option>`).join("");
+  sel.innerHTML = html;
+  sel.value = curEntry ? curEntry.key : (cur === own ? "" : cur);
+  sel.dataset.current = sel.value;
+  edLibHint();
+}
+function edLibHint() {
+  const e = libraryEntries().find((x) => x.key === $("edLibSel").value);
+  $("edLibNamesLbl").hidden = !(e && e.led_names.length);
+  const changed = $("edLibSel").value !== $("edLibSel").dataset.current;
+  $("edLibUse").disabled = !changed;
+  $("edLibHint").textContent = !e
+    ? "The drawing is chosen by the panel's USB PID. Choose a library drawing here for a panel the bridge does not recognise – e.g. a module you have swapped."
+    : (e.checked || "") + (e.led_names.length ? "" : " This drawing has no LED numbers: after choosing it, give the LEDs the names shown in Setup.");
+}
+$("edLibSel").addEventListener("change", edLibHint);
+$("edLibUse").addEventListener("click", async () => {
+  if (!ed) return;
+  if (edDirty() && !confirm("Change the drawing without saving your changes to this one?")) return;
+  const devId = ed.devId;
+  const res = await post("/api/devices/layout", { device: devId, layout: $("edLibSel").value || null,
+                                                  take_names: !$("edLibNamesLbl").hidden && $("edLibNames").checked });
+  if (!res.ok) { $("edErr").textContent = res.error; return; }
+  toast(res.message);
+  await loadLayouts();
+  await refreshNow();
+  ed = null;
+  openDrawEditor(devId);
+});
 
 // Panels that share one drawing – left/right versions in the library, same_as in layouts.json, or the same
 // "layout" in config.json – are one entry in the Drawings list: editing it changes the drawing for all of them.

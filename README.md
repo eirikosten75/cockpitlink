@@ -70,7 +70,14 @@ in (USB VID `3344`):
   USB PID, or by product name if the PID has been changed.
 - Other devices get the LEDs listed in their newest VPC Configuration Tool profile
   (`%LOCALAPPDATA%\VIRPIL\PROFILES`), named `led01`, `led02` … If there is no profile, the bridge guesses LEDs 05–24;
-  check them with *Walk through one by one* below. Devices whose profile has no LEDs are left out.
+  check them with *Walk through one by one* below.
+- **Stick bases** (and other bases without LEDs of their own) are listed too, with the four LEDs a grip can have:
+  `grip_led1`–`grip_led4` (commands 01–04). They are not ticked, since many grips have no LEDs. Grips are swapped
+  between bases, so the LEDs follow the grip: check which ones yours has with *Walk through one by one*, and choose a
+  grip drawing (e.g. *FLNKR Grip*) with *Use a library drawing* in the *Drawings* tab. If the base's VPC profile says
+  which grip it has and the library knows that grip (e.g. *VPC WarBRD Grip*), its drawing and LED names are used
+  straight away.
+- Devices whose profile has no LEDs at all (not even grip LEDs) are left out.
 - Plugged in a new device later? Press **Find new devices** in the *Panels* tab (or *Settings*) and tick the ones to add.
   Nothing already in your `config.json` is changed.
 
@@ -232,6 +239,13 @@ in the *Panels* tab (**Make drawing** if it has none yet). In the editor you can
 **Save drawing** writes your `layouts.json` (the old one is copied to `backups` first). **Undo** (Ctrl+Z) takes back
 one change at a time, and **Discard changes** goes back to the saved drawing. The page warns you before you switch
 panel or close it with unsaved changes.
+
+**Use a library drawing.** At the top of the editor you can choose any drawing in the library for the panel – for a
+panel the bridge does not recognise, or a module you have swapped (for example a Vector module on the yoke base). This
+sets `"layout"` for the device in `config.json`; choose *This panel's own drawing* to go back. If the library drawing
+knows the LED numbers, tick *also add its LED names*: they are added as extra names, so your existing names and rules
+keep working. Spots in the drawing that no LED on the panel has yet are shown dashed, and *Setup* lists the names the
+drawing expects – select an LED and click a name to give it that name.
 
 **By hand.** You can also edit the file yourself:
 

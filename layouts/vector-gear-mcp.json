@@ -1,0 +1,24 @@
+{
+  "title": "Vector Gear MCP",
+  "key": "VECTOR_GEAR",
+  "status": "unverified",
+  "checked": "Drawn from a product picture, not checked on a real module. A module for the Vector Flight Yoke Base: its USB PID, product name and LED numbers are not known, so choose this drawing by hand and give the LEDs these names in Setup. Which lights can be set is not known either - the silhouette and lever light may be backlight only.",
+  "pids": {},
+  "product_names": [],
+  "aspect": "405 / 610",
+  "deco": [
+    { "x": 33, "y": 3, "w": 26, "h": 13, "text": "✈" },
+    { "x": 14, "y": 28, "w": 36, "h": 58, "text": "GEAR LEVER" },
+    { "x": 5, "y": 30, "w": 7, "h": 54, "text": "UP DN" },
+    { "x": 66, "y": 43, "w": 26, "h": 20, "text": "EMER EXTN" }
+  ],
+  "leds": {
+    "green_l1": [20.5, 10.3, "rect"],
+    "green_l2": [22.5, 17.5, "rect"],
+    "green_r1": [64.2, 9.8, "rect"],
+    "green_r2": [63.7, 16.9, "rect"],
+    "red_left": [33.8, 19.2, "round"],
+    "red_nose": [44.4, 20.5, "round"],
+    "red_right": [55.6, 19.2, "round"]
+  }
+}
