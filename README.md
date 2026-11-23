@@ -55,7 +55,7 @@ The rule editor – a simvar (or LVAR), the LED, and the states with their colou
 
 The bridge connects to MSFS automatically when the sim starts, and reconnects if the connection drops.
 
-**Start with Windows:** tick *Start with Windows* in the tray icon's menu or at the top of the control panel. This adds
+**Start with Windows:** tick *Start with Windows* in the tray icon's menu or in the control panel's *Settings* tab. This adds
 an entry for your Windows user only (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, no admin rights needed), and
 unticking removes it again. It points to the exe where it is now; if you move the exe, tick it again. You can also see
 and turn it off under Windows *Settings → Apps → Startup*.
@@ -71,7 +71,7 @@ in (USB VID `3344`):
 - Other devices get the LEDs listed in their newest VPC Configuration Tool profile
   (`%LOCALAPPDATA%\VIRPIL\PROFILES`), named `led01`, `led02` … If there is no profile, the bridge guesses LEDs 05–24;
   check them with *Walk through one by one* below. Devices whose profile has no LEDs are left out.
-- Plugged in a new device later? Press **Find new devices** at the top of the control panel and tick the ones to add.
+- Plugged in a new device later? Press **Find new devices** in the *Panels* tab (or *Settings*) and tick the ones to add.
   Nothing already in your `config.json` is changed.
 
 `config.json` is yours: it is not in the zip, so an update never overwrites it. To start again from scratch, rename
@@ -83,7 +83,7 @@ tested, 01–04 are the device LEDs and 05–24 are the LEDs on the board, in th
 
 You do not need to work out which physical LED is which by hand:
 
-- **Setup** (button on each device in the control panel): click an LED and it blinks white on the physical panel.
+- **Setup** (button on each device in the *Panels* tab): click an LED and it blinks white on the physical panel.
   Give it a name (several names are separated by commas) and press Enter.
 - **Walk through one by one** blinks every LED on the device in turn – type a name, press Enter, next.
 - **Try command number** finds LEDs that are not in the config yet (01–54) and adds them.
@@ -102,11 +102,17 @@ Other values are rounded to the nearest of these (tested: 20 turns the LED off).
 
 ## 3. The control panel
 
-- **Top bar:** MSFS connection and aircraft, number of rules, uptime, when the config was last loaded.
-  *Reload config* applies changes made to `config.json` by hand without a restart. If the file is invalid, the old
-  config is kept and you are told what is wrong. *Quit bridge* sets the LEDs to their base colours and exits.
+The control panel has five tabs. The page remembers the last one, and you can link straight to one
+(e.g. http://127.0.0.1:8765/#rules).
+
+- **Top bar (always shown):** MSFS connection and aircraft, number of rules in use, uptime, when the config was last
+  loaded, and – when aircraft profiles are on – the profile in use (section 4). *Reload config* applies changes made to
+  `config.json` by hand without a restart. If the file is invalid, the old config is kept and you are told what is
+  wrong. *Quit bridge* sets the LEDs to their base colours and exits.
+- **Panels:** your devices with their LEDs live, *Setup* for naming LEDs, and *Find new devices*.
 - **Rules:** each rule with its current value from MSFS and which state applies right now. Turn rules on/off, move them
   up/down, or press *Edit* / *New rule*. Rules are evaluated top to bottom; if several rules drive the same LED, the last one wins.
+  With aircraft profiles on, the rules for all aircraft and each profile have their own tab here.
 - **Rule editor:** search about 800 simvars (with description, unit and live value), choose device and LED, and set up
   states (condition → colour, optionally blinking). The colour picker only offers the four brightness levels the
   panels actually have. *More options* has “only aircraft whose name contains …” and an extra condition on another
@@ -114,7 +120,9 @@ Other values are rounded to the nearest of these (tested: 20 turns the LED off).
 - **Devices:** panels that have a drawing (in the built-in library: Control Panel #1 and #2, SharKa-50 Panel and the
   MongoosT-50CM3 throttle – or one you made yourself) are drawn with their LEDs where they are on the real panel; other devices are shown as a
   grid. Hover over an LED to see its names, colour and which rule set it.
+- **Drawings:** the drawing editor (section 5) – choose a panel at the top, or press *Edit drawing* on a panel.
 - **Log:** live, with a filter. The log is also written to `bridge.log` next to `config.json`.
+- **Settings:** aircraft profiles on/off, *Start with Windows*, *Find new devices*, and the version and config path.
 
 Starting the exe while it is already running just opens the control panel. If the bridge is restarted, the control
 panel reloads itself.
@@ -147,6 +155,47 @@ The rule editor writes these for you, but you can also edit `config.json` by han
 - Simvar names are written with underscores, as Python-SimConnect uses them (`AUTOPILOT_MASTER`, `LIGHT_NAV_ON`,
   `GENERAL_ENG_FUEL_PRESSURE:1`).
 
+### Aircraft profiles
+
+Out of the box, one set of rules is used for every aircraft – that suits most aircraft. If an aircraft needs
+something different (an LVAR for its parking brake, other colours, an extra light), give it a **profile**:
+
+- Turn on **Use aircraft profiles** in the *Settings* tab. It is off by default, and with it off everything works as
+  before. Turning it off again keeps your profiles.
+- In the *Rules* tab, press **+ Profile for this aircraft** (or **+ New profile**). A profile has a name, one or more
+  **aircraft names**, and its own rules, made with the same rule editor.
+- **A profile builds on the rules for all aircraft:** its rules take over the LEDs they drive, and every other LED keeps
+  the rules for all aircraft. So a profile only needs the rules that are different. (Choose *only this profile's rules*
+  under *Other LEDs* if you want a profile to start from scratch instead.) While a profile is in use, the rules it
+  takes over are marked *Not used now* under *All aircraft*.
+- **Automatic:** when the aircraft changes, the bridge uses the first profile whose aircraft names appear in the
+  aircraft's title (upper/lower case does not matter). No match: the rules for all aircraft. Profiles higher in the
+  list win; use *Move up* / *Move down* to change the order.
+- **By hand:** choose a profile in the *Profile* list at the top of the page or in the tray icon's menu. The choice
+  stays – also after a restart – until you choose *Automatic* again. *All aircraft* uses only the rules for all
+  aircraft.
+- **Sharing:** *Export …* saves a profile as a file, and *Import …* adds one. Devices are matched by their name in
+  `config.json`, their PID or their product name; rules for devices or LEDs you do not have are left out, and the
+  message says which.
+
+**Automatic switching needs MSFS running and the bridge connected through SimConnect** – the aircraft name comes from
+MSFS (the top bar shows it). Without a connection there is no aircraft, so *Automatic* means the rules for all
+aircraft. Choosing a profile by hand works at any time, but like all rules, a profile's rules only act on the LEDs
+while MSFS is connected.
+
+In `config.json`:
+
+```json
+"profiles_enabled": true,
+"profile_select": "auto",
+"profiles": [
+  { "name": "Fenix A320", "match": ["Fenix A320", "FBW A32NX"], "rules": [ … ] }
+]
+```
+`profile_select` is `auto`, `default` (all aircraft) or a profile name. A profile can also have
+`"mode": "replace"` (only its own rules) and `"enabled": false`. The rule-level `aircraft_contains` still works for
+single rules.
+
 **Base colours** (`startup`) are what each LED shows when no rule or API call says otherwise – also when MSFS is
 closed (`on_disconnect_color: "startup"`) and when the bridge quits (`on_exit: "startup"`).
 
@@ -169,8 +218,8 @@ library drawing for the same PID, so you can change a library drawing to suit yo
 **Go back to the library drawing**. Updates of the bridge never touch `layouts.json`, and `layouts.json` is not in
 the zip.
 
-**The easy way: Edit drawing.** Every device card in the control panel has an **Edit drawing** button (**Make
-drawing** if the panel has none yet). In the editor you can:
+**The easy way: the Drawings tab.** Open the *Drawings* tab and choose a panel, or press **Edit drawing** on a panel
+in the *Panels* tab (**Make drawing** if it has none yet). In the editor you can:
 
 - drag the LEDs into place (or select one and use the arrow keys, with Shift for larger steps), and change their shape
   and label;
@@ -181,7 +230,8 @@ drawing** if the panel has none yet). In the editor you can:
   you like, it can be shown behind the drawing in the control panel too.
 
 **Save drawing** writes your `layouts.json` (the old one is copied to `backups` first). **Undo** (Ctrl+Z) takes back
-changes made since the editor was opened.
+one change at a time, and **Discard changes** goes back to the saved drawing. The page warns you before you switch
+panel or close it with unsaved changes.
 
 **By hand.** You can also edit the file yourself:
 

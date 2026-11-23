@@ -49,6 +49,7 @@
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
     font: 14px/1.45 system-ui, "Segoe UI", sans-serif;
@@ -83,8 +84,42 @@
   button.danger { color: var(--err); }
   button:disabled { opacity: .55; cursor: default; }
 
-  main { padding: 20px; display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); align-items: start; }
-  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } }
+  main { padding: 20px; }
+  main > section[hidden] { display: none; }
+  /* Tabs */
+  .tabs { position: sticky; top: var(--head-h, 57px); z-index: 4; display: flex; gap: 2px; padding: 0 20px;
+          background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 10px 14px;
+                 color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .tabs button:hover { color: var(--text); background: none; }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .tabs button .badge { font-weight: 500; font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .pane-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 16px; }
+  .pane-bar .hint { color: var(--muted); font-size: 13px; margin: 0; }
+  .pane-bar .grow { flex: 1; }
+  #profSel { font: inherit; font-size: 13px; padding: 1px 4px; border-radius: 6px; border: 1px solid var(--border);
+             background: var(--surface); color: var(--text); max-width: 260px; }
+  .settings { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+  .settings .body { padding: 12px 14px 16px; display: grid; gap: 10px; }
+  .settings .body p { margin: 0; color: var(--muted); font-size: 13px; }
+  .settings label.opt { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; }
+  .settings dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+  .settings dt { color: var(--muted); }
+  .settings dd { margin: 0; word-break: break-all; font-family: var(--mono); }
+  /* Profiles in the Rules tab */
+  .prof-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .prof-bar .tab { border-radius: 999px; padding: 3px 12px; font-size: 13px; }
+  .prof-bar .tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .prof-bar .tab .now { font-size: 11px; margin-left: 4px; opacity: .85; }
+  .prof-set { display: grid; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .prof-set .r { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .prof-set .r > span { font-size: 12px; color: var(--muted); font-weight: 600; min-width: 110px; }
+  .prof-set input[type=text], .prof-set select { font: inherit; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border);
+                                                 background: var(--bg); color: var(--text); min-width: 0; }
+  .prof-set input[type=text] { flex: 1; }
+  .prof-set .hint, .prof-note { color: var(--muted); font-size: 12px; margin: 0; }
+  .prof-note { padding: 8px 14px; border-bottom: 1px solid var(--border); }
+  .rule .over { color: var(--warn); font-size: 12px; }
   .devices { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
   .card h2 { font-size: 14px; margin: 0; padding: 10px 14px; display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); }
@@ -130,8 +165,7 @@
   .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
 
   /* Log */
-  .log { height: calc(100vh - 140px); min-height: 320px; display: flex; flex-direction: column; position: sticky; top: 76px; }
-  @media (max-width: 1000px) { .log { position: static; height: 420px; } }
+  .log { height: calc(100vh - 170px); min-height: 320px; display: flex; flex-direction: column; }
   .log .tools { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); align-items: center; }
   .log input[type=search] { flex: 1; font: inherit; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); color: var(--text); min-width: 0; }
   .log label { color: var(--muted); font-size: 12px; white-space: nowrap; }
@@ -193,9 +227,14 @@
 
   .face .photo { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 12px; pointer-events: none; }
 
-  /* Drawing editor */
-  dialog.wide-dlg { width: min(1180px, calc(100vw - 24px)); }
+  /* Drawing editor (the Drawings tab) */
   .ed { display: grid; gap: 12px; padding: 16px 18px; }
+  .ed h3 { margin: 0; font-size: 16px; }
+  .ed input[type=text], .ed input[type=number], .ed select {
+    font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); min-width: 0; width: 100%;
+  }
+  .ed .ed-side input[type=number] { width: 76px; }
+  .ed-head select { width: auto !important; }
   .ed-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
   .ed-head small { color: var(--muted); }
   .ed-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
@@ -220,7 +259,6 @@
   .ed-side .r { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .ed-side label.r { flex-wrap: nowrap; }
   .ed-side .r > span { font-size: 12px; color: var(--muted); min-width: 52px; }
-  dialog .ed-side input[type=number] { width: 76px; }
   .ed-side .hint { color: var(--muted); font-size: 12px; margin: 0; }
   .ed-unplaced { display: flex; flex-wrap: wrap; gap: 4px; }
   .file-btn { position: relative; overflow: hidden; padding: 3px 10px; border: 1px solid var(--border); border-radius: 7px;
@@ -294,10 +332,9 @@
     <span class="pill" id="pUptime">Uptime: …</span>
     <span class="pill" id="pCfg">Config: …</span>
   </div>
+  <label class="pill" id="pProfile" hidden title="Aircraft profile in use. Automatic picks it from the aircraft name, which needs MSFS running and connected.">
+    Profile <select id="profSel" aria-label="Aircraft profile"></select></label>
   <div class="actions">
-    <label class="pill" id="pAuto" title="Start VirpilLedBridge.exe automatically when you sign in to Windows">
-      <input type="checkbox" id="chkAuto"> Start with Windows</label>
-    <button id="btnFind" title="Look for Virpil devices that are plugged in but not in config.json yet">Find new devices</button>
     <button class="primary" id="btnReload" title="Read config.json again without restarting the bridge">Reload config</button>
     <button class="danger" id="btnQuit" title="Sets the LEDs to their base colours and quits the bridge">Quit bridge</button>
   </div>
@@ -305,22 +342,135 @@
 
 <div class="offline" id="offline" role="alert">Cannot reach the bridge. Has it been closed? Start VirpilLedBridge.exe and reload this page.</div>
 
+<nav class="tabs" role="tablist" aria-label="Sections" id="tabs">
+  <button type="button" role="tab" id="tab-panels" aria-controls="pane-panels" data-tab="panels">Panels</button>
+  <button type="button" role="tab" id="tab-rules" aria-controls="pane-rules" data-tab="rules">Rules</button>
+  <button type="button" role="tab" id="tab-drawings" aria-controls="pane-drawings" data-tab="drawings">Drawings</button>
+  <button type="button" role="tab" id="tab-log" aria-controls="pane-log" data-tab="log">Log</button>
+  <button type="button" role="tab" id="tab-settings" aria-controls="pane-settings" data-tab="settings">Settings</button>
+</nav>
+
 <main>
-  <section>
-    <div class="card" id="rulesCard">
-      <h2><span>Rules</span><span class="right"><small id="rulesInfo"></small><button class="small primary" type="button" id="btnNewRule">New rule</button></span></h2>
-      <div class="rules" id="rules"></div>
+  <section id="pane-panels" role="tabpanel" aria-labelledby="tab-panels">
+    <div class="pane-bar">
+      <p class="hint grow">The LEDs on your panels, live. Click <b>Setup</b> on a panel to name its LEDs, or <b>Edit drawing</b> to change its drawing.</p>
+      <button id="btnFind" title="Look for Virpil devices that are plugged in but not in config.json yet">Find new devices</button>
     </div>
     <div class="devices" id="devices"></div>
   </section>
-  <aside class="card log">
-    <h2>Log <small id="logCount"></small></h2>
-    <div class="tools">
-      <input type="search" id="logFilter" placeholder="Filter, e.g. Flaps or ERROR" aria-label="Filter the log">
-      <label><input type="checkbox" id="logFollow" checked> Follow</label>
+
+  <section id="pane-rules" role="tabpanel" aria-labelledby="tab-rules" hidden>
+    <div class="card" id="rulesCard">
+      <h2><span id="rulesTitle">Rules</span><span class="right"><small id="rulesInfo"></small><button class="small primary" type="button" id="btnNewRule">New rule</button></span></h2>
+      <div class="prof-bar" id="profBar" hidden></div>
+      <div id="profSet"></div>
+      <div class="rules" id="rules"></div>
     </div>
-    <div class="lines" id="lines"></div>
-  </aside>
+  </section>
+
+  <section id="pane-drawings" role="tabpanel" aria-labelledby="tab-drawings" hidden>
+    <div class="card">
+      <div class="ed">
+        <div class="ed-head"><h3 id="drawTitle">Drawings</h3>
+          <select id="edDevice" aria-label="Panel to draw"></select><small id="edKey"></small></div>
+        <div class="ed-tools">
+          <button type="button" class="small" id="edAddBox" title="Outline of a switch, knob or group of buttons">+ Box</button>
+          <button type="button" class="small" id="edArrange" title="Put the LEDs that are not on the drawing in a grid">Place the rest in a grid</button>
+          <button type="button" class="small" id="edUndo" title="Ctrl+Z">Undo</button>
+          <label><input type="checkbox" id="edSnap" checked> Snap to ½ %</label>
+          <span class="sep"></span>
+          <label class="file-btn">Photo …
+            <input type="file" id="edPhotoFile" accept="image/jpeg,image/png,image/webp" aria-label="Choose a photo of the panel to trace"></label>
+          <button type="button" class="small" id="edPhotoShape" title="Make the drawing the same shape as the photo">Match photo shape</button>
+          <button type="button" class="small" id="edPhotoDel">Remove photo</button>
+          <label>Photo <input type="range" id="edPhotoOp" min="10" max="100" value="50" aria-label="Photo opacity"></label>
+        </div>
+        <div class="ed-body">
+          <div class="ed-stage"><div class="face drawn ed-face" id="edFace" role="group" aria-label="Drawing"></div></div>
+          <div class="ed-side">
+            <fieldset>
+              <legend>Selected</legend>
+              <div id="edProps"></div>
+            </fieldset>
+            <fieldset>
+              <legend>Not on the drawing</legend>
+              <div class="ed-unplaced" id="edUnplaced"></div>
+            </fieldset>
+            <fieldset>
+              <legend>Drawing</legend>
+              <div class="r"><span>Title</span><input type="text" id="edTitle" maxlength="80" style="flex:1"></div>
+              <div class="r"><span>Shape</span><input type="number" id="edAspW" min="1" step="any" aria-label="Width">
+                <b>/</b><input type="number" id="edAspH" min="1" step="any" aria-label="Height"></div>
+              <div class="r"><span>Buttons</span><input type="number" id="edBtn" min="2" max="30" step="0.1" placeholder="10.5" aria-label="Button width in percent"> % of the width</div>
+              <label class="r"><input type="checkbox" id="edWide"> Card uses the full width</label>
+              <label class="r"><input type="checkbox" id="edPhotoShow"> Show the photo in the control panel too</label>
+              <p class="hint">The photo is saved at once in the <code>photos</code> folder on this PC only – it is not part of layouts.json.</p>
+            </fieldset>
+          </div>
+        </div>
+        <div class="dlg-foot">
+          <button type="button" id="edReset" class="danger" hidden></button>
+          <span class="err" id="edErr"></span>
+          <button type="button" id="edCancel">Discard changes</button>
+          <button type="button" id="edSave" class="primary">Save drawing</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pane-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+    <div class="card log">
+      <h2>Log <small id="logCount"></small></h2>
+      <div class="tools">
+        <input type="search" id="logFilter" placeholder="Filter, e.g. Flaps or ERROR" aria-label="Filter the log">
+        <label><input type="checkbox" id="logFollow" checked> Follow</label>
+      </div>
+      <div class="lines" id="lines"></div>
+    </div>
+  </section>
+
+  <section id="pane-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+    <div class="settings">
+      <div class="card">
+        <h2>Aircraft profiles</h2>
+        <div class="body">
+          <label class="opt"><input type="checkbox" id="chkProfiles"> Use aircraft profiles</label>
+          <p>A profile has extra rules for some aircraft – for example a different parking brake light in the A320.
+            Its rules take over the LEDs they drive; every other LED keeps the rules for all aircraft. Off: the rules
+            for all aircraft are used for every aircraft, as before. Your profiles are kept when you turn this off.</p>
+          <p><b>Automatic</b> switching picks the profile from the aircraft name, so it needs MSFS running and the
+            bridge connected through SimConnect. You can also choose a profile by hand at the top of the page or in
+            the tray menu; that choice stays until you choose <i>Automatic</i> again.</p>
+          <p>Make and edit profiles in the <b>Rules</b> tab.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Windows</h2>
+        <div class="body">
+          <label class="opt" id="pAuto" title="Start VirpilLedBridge.exe automatically when you sign in to Windows">
+            <input type="checkbox" id="chkAuto"> Start with Windows</label>
+          <p>Starts the bridge in the tray when you sign in, so the LEDs are ready before you start MSFS.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Devices</h2>
+        <div class="body">
+          <p>Look for Virpil devices that are plugged in but not in config.json yet.</p>
+          <div><button type="button" id="btnFind2">Find new devices</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>About</h2>
+        <div class="body">
+          <dl id="aboutList"></dl>
+          <p><a href="https://github.com/eirikosten75/virpil-led-bridge#readme" target="_blank" rel="noopener">README</a> ·
+            <a href="https://github.com/eirikosten75/virpil-led-bridge/wiki" target="_blank" rel="noopener">Wiki</a> ·
+            <a href="https://github.com/eirikosten75/virpil-led-bridge/releases" target="_blank" rel="noopener">Releases</a> ·
+            <a href="https://github.com/eirikosten75/virpil-led-bridge/issues/new/choose" target="_blank" rel="noopener">Report a problem</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <dialog id="ruleDlg" aria-labelledby="ruleTitle">
@@ -376,52 +526,6 @@
       <button type="button" id="findAdd" class="primary">Add selected</button>
     </div>
   </form>
-</dialog>
-<dialog id="drawDlg" class="wide-dlg" aria-labelledby="drawTitle">
-  <div class="ed">
-    <div class="ed-head"><h3 id="drawTitle">Edit drawing</h3><small id="edKey"></small></div>
-    <div class="ed-tools">
-      <button type="button" class="small" id="edAddBox" title="Outline of a switch, knob or group of buttons">+ Box</button>
-      <button type="button" class="small" id="edArrange" title="Put the LEDs that are not on the drawing in a grid">Place the rest in a grid</button>
-      <button type="button" class="small" id="edUndo" title="Ctrl+Z">Undo</button>
-      <label><input type="checkbox" id="edSnap" checked> Snap to ½ %</label>
-      <span class="sep"></span>
-      <label class="file-btn">Photo …
-        <input type="file" id="edPhotoFile" accept="image/jpeg,image/png,image/webp" aria-label="Choose a photo of the panel to trace"></label>
-      <button type="button" class="small" id="edPhotoShape" title="Make the drawing the same shape as the photo">Match photo shape</button>
-      <button type="button" class="small" id="edPhotoDel">Remove photo</button>
-      <label>Photo <input type="range" id="edPhotoOp" min="10" max="100" value="50" aria-label="Photo opacity"></label>
-    </div>
-    <div class="ed-body">
-      <div class="ed-stage"><div class="face drawn ed-face" id="edFace" role="group" aria-label="Drawing"></div></div>
-      <div class="ed-side">
-        <fieldset>
-          <legend>Selected</legend>
-          <div id="edProps"></div>
-        </fieldset>
-        <fieldset>
-          <legend>Not on the drawing</legend>
-          <div class="ed-unplaced" id="edUnplaced"></div>
-        </fieldset>
-        <fieldset>
-          <legend>Drawing</legend>
-          <div class="r"><span>Title</span><input type="text" id="edTitle" maxlength="80" style="flex:1"></div>
-          <div class="r"><span>Shape</span><input type="number" id="edAspW" min="1" step="any" aria-label="Width">
-            <b>/</b><input type="number" id="edAspH" min="1" step="any" aria-label="Height"></div>
-          <div class="r"><span>Buttons</span><input type="number" id="edBtn" min="2" max="30" step="0.1" placeholder="10.5" aria-label="Button width in percent"> % of the width</div>
-          <label class="r"><input type="checkbox" id="edWide"> Card uses the full width</label>
-          <label class="r"><input type="checkbox" id="edPhotoShow"> Show the photo in the control panel too</label>
-          <p class="hint">The photo is saved at once in the <code>photos</code> folder on this PC only – it is not part of layouts.json.</p>
-        </fieldset>
-      </div>
-    </div>
-    <div class="dlg-foot">
-      <button type="button" id="edReset" class="danger" hidden></button>
-      <span class="err" id="edErr"></span>
-      <button type="button" id="edCancel">Cancel</button>
-      <button type="button" id="edSave" class="primary">Save drawing</button>
-    </div>
-  </div>
 </dialog>
 <div class="pal" id="pal" role="dialog" aria-label="Choose a colour"></div>
 
@@ -526,6 +630,7 @@ async function refreshNow() {
     const st = await (await fetch("/api/status", { cache: "no-store" })).json();
     lastStatus = st;
     renderHeader(st);
+    renderProfile(st);
     renderDevices(st);
   } catch { /* the status polling shows that the bridge is gone */ }
 }
@@ -542,7 +647,12 @@ function buildDevice(dev) {
   const drawBtn = h.querySelector("[data-draw]");
   drawBtn.textContent = layout ? "Edit drawing" : "Make drawing";
   drawBtn.title = layout ? "Move the LEDs, draw boxes, trace a photo" : "Make a drawing of this panel";
-  drawBtn.addEventListener("click", () => openDrawEditor(dev.id));
+  drawBtn.addEventListener("click", () => {
+    if (ed && ed.devId !== dev.id && edDirty() && !confirm("Open another panel without saving the changes to the drawing you are editing?")) { showTab("drawings"); return; }
+    if (ed && ed.devId === dev.id) { showTab("drawings"); return; }
+    ed = null;
+    openDrawEditor(dev.id);
+  });
   const setupBtn = h.querySelector("[data-setup]");
   card.appendChild(h);
 
@@ -984,12 +1094,15 @@ async function pollStatus() {
     }
     lastStatus = st;
     renderHeader(st);
+    renderProfile(st);
+    renderAbout(st);
     // Fetch the drawings on start and whenever layouts.json changes on disk.
     if (st.layouts_mtime !== layoutsMtime) {
       layoutsMtime = st.layouts_mtime;
       await loadLayouts();
     }
     renderDevices(st);
+    if (!$("pane-drawings").hidden) openDrawingsTab();
     setOffline(false);
     if (st.config_loaded_at !== lastCfgLoaded) {
       lastCfgLoaded = st.config_loaded_at;
@@ -1043,6 +1156,85 @@ function renderLog() {
   if ($("logFollow").checked) box.scrollTop = box.scrollHeight;
 }
 $("logFilter").addEventListener("input", renderLog);
+
+// ---- Tabs ----
+const TABS = ["panels", "rules", "drawings", "log", "settings"];
+function showTab(name, focus) {
+  if (!TABS.includes(name)) name = "panels";
+  for (const t of TABS) {
+    const on = t === name;
+    const btn = $("tab-" + t);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+    btn.tabIndex = on ? 0 : -1;
+    $("pane-" + t).hidden = !on;
+  }
+  if (focus) $("tab-" + name).focus();
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  try { localStorage.setItem("vlb-tab", name); } catch { /* private mode */ }
+  if (name === "drawings") openDrawingsTab();
+  if (name === "log") renderLog();
+}
+$("tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-tab]");
+  if (b) showTab(b.dataset.tab);
+});
+$("tabs").addEventListener("keydown", (e) => {
+  const i = TABS.indexOf(document.activeElement?.dataset?.tab);
+  if (i < 0) return;
+  const j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+  if (j == null) return;
+  e.preventDefault();
+  showTab(TABS[(j + TABS.length) % TABS.length], true);
+});
+window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+function initialTab() {
+  let t = location.hash.slice(1);
+  if (!TABS.includes(t)) { try { t = localStorage.getItem("vlb-tab") || ""; } catch { t = ""; } }
+  showTab(TABS.includes(t) ? t : "panels");
+}
+// Keep the tab bar right under the header, whatever height the header has
+function fitTabs() { document.documentElement.style.setProperty("--head-h", document.querySelector("header").offsetHeight + "px"); }
+window.addEventListener("resize", fitTabs);
+
+// ---- Profile chosen at the top of the page ----
+function renderProfile(st) {
+  const pr = st.profile || { enabled: false };
+  const on = pr.enabled && pr.names && pr.names.length;
+  // When the profile in use changes (e.g. another aircraft), show it in the Rules tab too.
+  const now = JSON.stringify([pr.enabled, pr.active, st.sim?.aircraft || null]);
+  if (renderProfile.last !== now) { renderProfile.last = now; if (cfgUI) renderRules(); }
+  $("pProfile").hidden = !on;
+  $("chkProfiles").checked = !!pr.enabled;
+  if (!on) return;
+  const sel = $("profSel");
+  const opts = [["auto", `Automatic – ${pr.select === "auto" ? (pr.active || "all aircraft") : "by aircraft"}`],
+                ["default", "All aircraft"], ...pr.names.map((n) => [n, n])];
+  const sig = JSON.stringify([opts, pr.select]);
+  if (sel.dataset.sig !== sig && document.activeElement !== sel) {
+    sel.dataset.sig = sig;
+    sel.innerHTML = opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("");
+    sel.value = pr.select;
+  }
+  $("pProfile").title = `In use: ${pr.active || "rules for all aircraft"} (${pr.why}). Automatic picks the profile from the aircraft name, which needs MSFS running and connected.`;
+}
+$("profSel").addEventListener("change", async () => {
+  const res = await post("/api/profiles/select", { select: $("profSel").value });
+  res.ok ? toast(res.message) : toast(res.error, true);
+  $("profSel").dataset.sig = "";
+  await refreshNow();
+  renderRules();
+});
+$("chkProfiles").addEventListener("change", async (e) => {
+  const res = await post("/api/profiles/enabled", { enabled: e.target.checked });
+  res.ok ? toast(res.message) : toast(res.error, true);
+});
+
+function renderAbout(st) {
+  const items = [["Version", st.version], ["Config", st.config_path], ["Mode", st.dry_run ? "dry run (LEDs are not written)" : "normal"],
+                 ["MSFS", st.sim.enabled ? (st.sim.connected ? "connected" : "waiting for MSFS") : "off"]];
+  const html = items.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  if ($("aboutList").dataset.html !== html) { $("aboutList").dataset.html = html; $("aboutList").innerHTML = html; }
+}
 
 // Buttons
 function toast(msg, isErr) {
@@ -1105,6 +1297,7 @@ function openFind() {
   loadFind();
 }
 $("btnFind").addEventListener("click", openFind);
+$("btnFind2").addEventListener("click", openFind);
 $("findAgain").addEventListener("click", loadFind);
 $("findCancel").addEventListener("click", () => $("findDlg").close());
 $("findAdd").addEventListener("click", async () => {
@@ -1173,8 +1366,27 @@ function openDrawEditor(devId) {
   edFields();
   edRender();
   edProps();
-  $("drawDlg").showModal();
+  $("edDevice").innerHTML = (lastStatus?.devices || []).map((d) => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join("");
+  $("edDevice").value = devId;
+  showTab("drawings");
 }
+
+// The Drawings tab: open the chosen panel (the first one if none is open yet)
+function openDrawingsTab() {
+  if (ed) return;
+  const first = lastStatus?.devices?.[0];
+  if (first) openDrawEditor(first.id);
+}
+$("edDevice").addEventListener("change", () => {
+  const id = $("edDevice").value;
+  if (ed && id !== ed.devId && edDirty() && !confirm("Switch panel without saving the changes to this drawing?")) {
+    $("edDevice").value = ed.devId;
+    return;
+  }
+  ed = null;
+  openDrawEditor(id);
+});
+window.addEventListener("beforeunload", (e) => { if (edDirty()) e.preventDefault(); });
 
 function edFields() {
   const [w, h] = parseAspect(ed.lay.aspect);
@@ -1467,7 +1679,7 @@ $("edFace").addEventListener("focusin", (e) => {
   const item = e.target.closest("[data-kind]");
   if (ed && item) edSelect({ kind: item.dataset.kind, id: item.dataset.kind === "deco" ? +item.dataset.id : item.dataset.id });
 });
-$("drawDlg").addEventListener("keydown", (e) => {
+$("pane-drawings").addEventListener("keydown", (e) => {
   if (!ed) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
     if (e.target.matches("input[type=text], input[type=number]")) return;
@@ -1599,26 +1811,28 @@ $("edPhotoDel").addEventListener("click", async () => {
   $("devices").dataset.sig = "";
 });
 
-// Save and close
-function edClose() {
-  if (edDirty() && !confirm("Close the editor without saving the changes to the drawing?")) return;
-  $("drawDlg").close();
+// Discard, save and go back to the library drawing
+function edReopen() {
+  const id = ed?.devId;
   ed = null;
+  edDrag = null;
+  if (id) openDrawEditor(id);
 }
-$("edCancel").addEventListener("click", edClose);
+$("edCancel").addEventListener("click", () => {
+  if (!edDirty()) { toast("There are no changes to discard."); return; }
+  if (confirm("Discard the changes to this drawing?")) edReopen();
+});
 $("edReset").addEventListener("click", async () => {
   const toLib = ed.source === "changed";
   if (!confirm(toLib ? "Throw away your changes to this drawing and use the library drawing again?"
                      : "Delete your drawing of this panel? It is then shown as a simple grid.")) return;
   const res = await post("/api/layouts/reset", { key: ed.key, mtime: ed.mtime });
   if (!res.ok) { $("edErr").textContent = res.error; return; }
-  $("drawDlg").close();
   toast(res.message);
   await loadLayouts();
   await refreshNow();
+  edReopen();
 });
-$("drawDlg").addEventListener("cancel", (e) => { e.preventDefault(); edClose(); });
-$("drawDlg").addEventListener("close", () => { ed = null; edDrag = null; });
 $("edFace").tabIndex = -1;
 $("edSave").addEventListener("click", async () => {
   $("edErr").textContent = "";
@@ -1627,11 +1841,10 @@ $("edSave").addEventListener("click", async () => {
   $("edSave").disabled = false;
   if (!res.ok) { $("edErr").textContent = res.error; return; }
   ed.orig = JSON.stringify(ed.lay);
-  $("drawDlg").close();
-  ed = null;
   toast(res.message);
   await loadLayouts();
   await refreshNow();
+  edReopen();
 });
 
 $("btnQuit").addEventListener("click", async () => {
@@ -1735,6 +1948,160 @@ function fmtVal(v) {
   return Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2);
 }
 
+// ---- Profiles in the Rules tab ----
+let ruleScope = null; // null = rules for all aircraft, otherwise a profile name
+function scopeProfile() { return ruleScope ? (cfgUI?.profiles || []).find((p) => p.name === ruleScope) : null; }
+function scopeRules() { return ruleScope ? (scopeProfile()?.rules || []) : (cfgUI?.rules || []); }
+function profilesShown() { return !!cfgUI?.profiles_enabled; }
+
+function physKey(devId, ledName) {
+  const led = devById(devId)?.leds.find((l) => l.names.includes(ledName));
+  return devId + "/" + (led ? led.cmd : ledName);
+}
+
+function renderProfileBar() {
+  const bar = $("profBar"), set = $("profSet");
+  if (!profilesShown()) {
+    bar.hidden = true; set.innerHTML = "";
+    if (ruleScope) ruleScope = null;
+    $("rulesTitle").textContent = "Rules";
+    return;
+  }
+  if (ruleScope && !scopeProfile()) ruleScope = null;
+  const active = lastStatus?.profile?.active || null;
+  bar.hidden = false;
+  bar.innerHTML = "";
+  const tab = (label, scope) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "small tab" + (ruleScope === scope ? " on" : "");
+    b.textContent = label;
+    b.setAttribute("aria-pressed", ruleScope === scope ? "true" : "false");
+    if ((scope || null) === active) {
+      const n = document.createElement("span");
+      n.className = "now";
+      n.textContent = "● in use";
+      b.appendChild(n);
+    }
+    b.addEventListener("click", () => { ruleScope = scope; renderRules(); });
+    bar.appendChild(b);
+  };
+  tab("All aircraft", null);
+  for (const pr of cfgUI.profiles) tab(pr.name + (pr.enabled === false ? " (off)" : ""), pr.name);
+  const add = (label, fn, title) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "small"; b.textContent = label; if (title) b.title = title;
+    b.addEventListener("click", fn);
+    bar.appendChild(b);
+  };
+  add("+ New profile", () => newProfile(false));
+  if (lastStatus?.sim?.aircraft) add("+ Profile for this aircraft", () => newProfile(true), lastStatus.sim.aircraft);
+  add("Import …", importProfile, "Add a profile from a file exported by Virpil LED Bridge");
+  $("rulesTitle").textContent = ruleScope ? `Rules – profile “${ruleScope}”` : "Rules – all aircraft";
+  renderProfileSettings();
+}
+
+function renderProfileSettings() {
+  const box = $("profSet");
+  const pr = scopeProfile();
+  if (!pr) {
+    box.innerHTML = `<p class="prof-note">These rules are used for every aircraft. A profile's rules take over the LEDs they
+      drive while that profile is in use. Automatic switching needs MSFS running and connected.</p>`;
+    return;
+  }
+  box.innerHTML = `<div class="prof-set">
+      <div class="r"><span>Name</span><input type="text" data-f="name" maxlength="60"></div>
+      <div class="r"><span>Aircraft names</span><input type="text" data-f="match" placeholder="e.g. Fenix A320, FBW A32NX"></div>
+      <p class="hint">Used automatically when the aircraft name in MSFS contains one of these (separated by commas,
+        upper/lower case does not matter). Current aircraft: <b data-f="ac"></b></p>
+      <div class="r"><span>Other LEDs</span><select data-f="mode">
+          <option value="extend">keep the rules for all aircraft (recommended)</option>
+          <option value="replace">only this profile's rules</option></select></div>
+      <div class="r"><span>In use</span><label><input type="checkbox" data-f="enabled"> The profile can be chosen</label></div>
+      <div class="r"><span></span>
+        <button type="button" class="small primary" data-a="save">Save profile</button>
+        <button type="button" class="small" data-a="copy" title="Copy all rules for all aircraft into this profile, to change them here">Copy rules from all aircraft</button>
+        <button type="button" class="small" data-a="up">Move up</button>
+        <button type="button" class="small" data-a="down">Move down</button>
+        <a class="small" data-a="export">Export …</a>
+        <button type="button" class="small danger" data-a="delete">Delete profile</button></div>
+    </div>`;
+  const f = (k) => box.querySelector(`[data-f="${k}"]`);
+  f("name").value = pr.name;
+  f("match").value = (pr.match || []).join(", ");
+  f("mode").value = pr.mode || "extend";
+  f("enabled").checked = pr.enabled !== false;
+  f("ac").textContent = lastStatus?.sim?.aircraft || "none (MSFS not connected)";
+  const exp = box.querySelector('[data-a="export"]');
+  exp.href = "/api/profiles/export?name=" + encodeURIComponent(pr.name);
+  exp.setAttribute("download", "");
+  exp.className = "small";
+  exp.style.cssText = "padding:3px 10px;border:1px solid var(--border);border-radius:7px;text-decoration:none;color:var(--text)";
+  box.firstElementChild.addEventListener("click", async (e) => {
+    const a = e.target.closest("button[data-a]")?.dataset.a;
+    if (!a) return;
+    const list = structuredClone(cfgUI.profiles);
+    const i = list.findIndex((x) => x.name === pr.name);
+    if (a === "save") {
+      const name = f("name").value.trim();
+      if (!name) { toast("The profile needs a name.", true); return; }
+      list[i] = { ...list[i], name, match: f("match").value.split(",").map((x) => x.trim()).filter(Boolean),
+                  mode: f("mode").value, enabled: f("enabled").checked };
+      if (await saveProfiles(list)) ruleScope = name;
+    } else if (a === "copy") {
+      if (list[i].rules.length && !confirm("Add copies of all the rules for all aircraft to this profile?")) return;
+      list[i].rules = [...list[i].rules, ...structuredClone(cfgUI.rules)];
+      await saveProfiles(list);
+    } else if (a === "up" || a === "down") {
+      const j = a === "up" ? i - 1 : i + 1;
+      if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      await saveProfiles(list);
+    } else if (a === "delete") {
+      if (!confirm(`Delete the profile “${pr.name}” and its ${pr.rules.length} rules? config.json is backed up first.`)) return;
+      list.splice(i, 1);
+      if (await saveProfiles(list)) ruleScope = null;
+    }
+    renderRules();
+  });
+}
+
+async function saveProfiles(list) {
+  const res = await post("/api/profiles", { profiles: list, mtime: cfgUI.mtime });
+  if (!res.ok) { toast(res.error, true); await loadConfigUI(); return false; }
+  toast(res.message);
+  await loadConfigUI();
+  await refreshNow();
+  return true;
+}
+
+async function newProfile(forAircraft) {
+  const ac = lastStatus?.sim?.aircraft || "";
+  const name = prompt("Name of the new profile:", forAircraft ? ac.slice(0, 60) : "");
+  if (!name || !name.trim()) return;
+  const match = forAircraft ? [ac] : [];
+  const list = [...structuredClone(cfgUI.profiles || []), { name: name.trim(), match, rules: [] }];
+  if (await saveProfiles(list)) { ruleScope = name.trim(); renderRules(); }
+}
+
+function importProfile() {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".json,application/json";
+  inp.addEventListener("change", async () => {
+    const file = inp.files[0];
+    if (!file) return;
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { toast("The file is not valid JSON.", true); return; }
+    const res = await post("/api/profiles/import", { data });
+    if (!res.ok) { toast(res.error, true); return; }
+    toast(res.message);
+    await loadConfigUI();
+    await refreshNow();
+  });
+  inp.click();
+}
+
 // ---- The rule list ----
 function ledLabel(devId, ledName) {
   const dev = devById(devId);
@@ -1745,9 +2112,21 @@ function ledLabel(devId, ledName) {
 function renderRules() {
   const box = $("rules");
   if (!cfgUI) return;
-  const rules = cfgUI.rules;
+  renderProfileBar();
+  const rules = scopeRules();
   $("rulesInfo").textContent = `${rules.length} rules · evaluated top to bottom`;
-  if (!rules.length) { box.innerHTML = `<div class="empty">No rules yet. Press “New rule”.</div>`; return; }
+  // LEDs that the profile in use takes over (shown on the rules for all aircraft)
+  const activeName = lastStatus?.profile?.active;
+  const activeProf = profilesShown() && activeName ? cfgUI.profiles.find((p) => p.name === activeName) : null;
+  const takenBy = new Set(!ruleScope && activeProf
+    ? (activeProf.mode === "replace" ? ["*"] : activeProf.rules.filter((r) => r.enabled !== false).map((r) => physKey(r.device, r.led)))
+    : []);
+  if (!rules.length) {
+    box.innerHTML = ruleScope
+      ? `<div class="empty">No rules in this profile yet. Press “New rule”, or “Copy rules from all aircraft” and change them.</div>`
+      : `<div class="empty">No rules yet. Press “New rule”.</div>`;
+    return;
+  }
   box.replaceChildren(...rules.map((rule, i) => {
     const row = document.createElement("div");
     row.className = "rule" + (rule.enabled === false ? " off" : "");
@@ -1769,6 +2148,12 @@ function renderRules() {
     if (rule.only_if) sub += `  ·  only when ${rule.only_if.simvar} ${condText(rule.only_if.if)}`;
     if (rule.aircraft_contains) sub += `  ·  only aircraft with “${rule.aircraft_contains}”`;
     row.querySelector(".sub").textContent = sub;
+    if (takenBy.has("*") || takenBy.has(physKey(rule.device, rule.led))) {
+      const o = document.createElement("div");
+      o.className = "over";
+      o.textContent = `Not used now – the profile “${activeName}” drives this LED`;
+      row.querySelector(".sub").after(o);
+    }
     row.querySelector(".tgt span:last-child").textContent = text;
     const chips = row.querySelector(".chips");
     rule.states.forEach((st, k) => {
@@ -1787,7 +2172,7 @@ function renderRules() {
 function updateRulesLive() {
   if (!cfgUI) return;
   document.querySelectorAll("#rules .rule").forEach((row) => {
-    const rule = cfgUI.rules[+row.dataset.i];
+    const rule = scopeRules()[+row.dataset.i];
     if (!rule) return;
     const v = live.values[rule.simvar];
     const val = row.querySelector(".val");
@@ -1815,7 +2200,7 @@ $("rules").addEventListener("click", async (e) => {
   const el = e.target.closest("[data-act]");
   if (!el) return;
   const i = +el.closest(".rule").dataset.i;
-  const rules = structuredClone(cfgUI.rules);
+  const rules = structuredClone(scopeRules());
   switch (el.dataset.act) {
     case "edit": return openRuleEditor(i);
     case "toggle": rules[i].enabled = el.checked; if (el.checked) delete rules[i].enabled; break;
@@ -1827,7 +2212,7 @@ $("rules").addEventListener("click", async (e) => {
 });
 
 async function saveRules(rules) {
-  const res = await post("/api/rules", { rules, mtime: cfgUI.mtime });
+  const res = await post("/api/rules", { rules, mtime: cfgUI.mtime, profile: ruleScope || undefined });
   if (!res.ok) { toast(res.error, true); await loadConfigUI(); return false; }
   toast(res.message);
   await loadConfigUI();
@@ -2045,9 +2430,9 @@ async function openRuleEditor(index) {
   const rule = isNew
     ? { name: "", simvar: "", device: firstDev.id, led: primaryName(firstDev.leds[0].names),
         states: [{ if: "== 1", color: "green" }, { color: "startup" }] }
-    : structuredClone(cfgUI.rules[index]);
+    : structuredClone(scopeRules()[index]);
   edit = { index, rule };
-  $("ruleTitle").textContent = isNew ? "New rule" : "Edit rule";
+  $("ruleTitle").textContent = (isNew ? "New rule" : "Edit rule") + (ruleScope ? ` – profile “${ruleScope}”` : "");
   $("rDelete").hidden = isNew;
   $("rErr").textContent = "";
   $("rName").value = rule.name || "";
@@ -2133,7 +2518,7 @@ $("ruleDlg").addEventListener("close", () => { edit = null; $("pal").style.displ
 
 $("rDelete").addEventListener("click", async () => {
   if (!confirm(`Delete the rule “${edit.rule.name}”?`)) return;
-  const rules = structuredClone(cfgUI.rules);
+  const rules = structuredClone(scopeRules());
   rules.splice(edit.index, 1);
   if (await saveRules(rules)) $("ruleDlg").close();
 });
@@ -2162,9 +2547,9 @@ $("rSave").addEventListener("click", async () => {
   const ordered = {};
   for (const k of ["name", "enabled", "simvar", "only_if", "otherwise", "aircraft_contains", "device", "led", "states"]) if (k in r) ordered[k] = r[k];
   for (const k of Object.keys(r)) if (!(k in ordered)) ordered[k] = r[k];
-  const rules = structuredClone(cfgUI.rules);
+  const rules = structuredClone(scopeRules());
   if (edit.index == null) rules.push(ordered); else rules[edit.index] = ordered;
-  const res = await post("/api/rules", { rules, mtime: cfgUI.mtime });
+  const res = await post("/api/rules", { rules, mtime: cfgUI.mtime, profile: ruleScope || undefined });
   if (!res.ok) { $("rErr").textContent = res.error; return; }
   toast(res.message);
   $("ruleDlg").close();
@@ -2173,6 +2558,8 @@ $("rSave").addEventListener("click", async () => {
 
 $("btnNewRule").addEventListener("click", () => openRuleEditor(null));
 
+fitTabs();
+initialTab();
 pollStatus();
 pollLog();
 pollLive();

@@ -481,11 +481,46 @@ class SimRules(threading.Thread):
         return bool(prev and prev[1] and time.monotonic() - prev[1] < self.moving_hold)
 
     def configure(self, cfg: dict) -> None:
-        self.rules = list(cfg.get("rules", []))
+        self.cfg = cfg
         self.poll = cfg.get("sim_poll_ms", 200) / 1000.0
         self.on_disconnect = cfg.get("on_disconnect_color", "off")
         # 'moving' is true as long as the value has changed within this window
         self.moving_hold = cfg.get("moving_hold_ms", 700) / 1000.0
+        self.select = cfg.get("profile_select", "auto")
+        self.profile: str | None = None
+        self.rules = []
+        self.choose_profile(quiet=True)
+
+    def choose_profile(self, quiet: bool = False) -> None:
+        """Picks the profile for the current aircraft (or the one chosen by hand) and switches the rules.
+        LEDs that only the old rules drove go back to their base colour."""
+        prof, why = pick_profile(self.cfg, self.aircraft, self.select)
+        name = prof.get("name") if prof else None
+        new_rules = effective_rules(self.cfg, prof)
+        old_rules, old_name = self.rules, self.profile
+        self.rules, self.profile, self.profile_why = new_rules, name, why
+        if quiet or name == old_name:
+            return
+        log.info("Profile: %s (%s)", name or "all aircraft", why)
+        devices = self.cfg["devices"]
+
+        def phys(r: dict):
+            return r.get("device"), devices.get(r.get("device"), {}).get("leds", {}).get(r.get("led"))
+
+        now_driven = {phys(r) for r in new_rules}
+        done = set()
+        for r in old_rules:
+            p = phys(r)
+            if p[1] and p not in now_driven and p not in done:
+                done.add(p)
+                try:
+                    self.leds.set(r["device"], r["led"], color="startup", source="profile change")
+                except ValueError:
+                    pass
+
+    def set_select(self, select: str) -> None:
+        self.select = select
+        self.choose_profile()
 
     def _is_moving(self, simvar: str, value: float) -> bool:
         now = time.monotonic()
@@ -520,6 +555,8 @@ class SimRules(threading.Thread):
                 was_connected = self.connected
                 self.connected, self.aircraft, self.connected_since = False, None, None
                 self.live.clear()
+                if was_connected:
+                    self.choose_profile()
                 if was_connected or not quiet:
                     log.info("No SimConnect connection (%s). Retrying every 5 seconds.", e.__class__.__name__)
                 quiet = True
@@ -534,6 +571,7 @@ class SimRules(threading.Thread):
                 log.info("Aircraft: %s", title or "(unknown)")
                 last_title = title
                 self.aircraft = title
+                self.choose_profile()
             seen: set[str] = set()
             for rule in self.rules:
                 if rule.get("enabled", True) is False:
@@ -669,31 +707,124 @@ def validate_config(cfg: dict) -> dict:
             if key not in spec:
                 raise ValueError(f"Device '{dev}' is missing '{key}'")
     known_colors = set(DEFAULT_COLORS) | set(cfg.get("colors", {})) | {"startup"}
+    if not isinstance(cfg.get("rules", []), list):
+        raise ValueError("'rules' must be a list")
     for i, rule in enumerate(cfg.get("rules", []), 1):
-        name = rule.get("name", f"rule {i}")
-        for key in ("simvar", "device", "led", "states"):
-            if key not in rule:
-                raise ValueError(f"Rule '{name}' is missing '{key}'")
-        if rule["device"] not in cfg["devices"]:
-            raise ValueError(f"Rule '{name}' uses unknown device '{rule['device']}'")
-        if rule["led"] not in cfg["devices"][rule["device"]]["leds"]:
-            raise ValueError(f"Rule '{name}' uses unknown LED '{rule['led']}'")
-        for st in rule["states"]:
-            check_condition(st.get("if"), 0.0)  # raises ValueError on an invalid condition
-            if "color" in st and st["color"].lower() not in known_colors:
-                raise ValueError(f"Rule '{name}' uses unknown colour '{st['color']}'")
-            if "rgb" in st and not re.fullmatch(r"#?[0-9a-fA-F]{6}", str(st["rgb"])):
-                raise ValueError(f"Rule '{name}' has an invalid rgb '{st['rgb']}'")
-        oi = rule.get("only_if")
-        if oi is not None:
-            if not isinstance(oi, dict) or "simvar" not in oi:
-                raise ValueError(f"Rule '{name}': 'only_if' needs a simvar")
-            check_condition(oi.get("if"), 0.0)
-        other = rule.get("otherwise")
-        if other is not None and str(other).lower() not in known_colors \
-                and not re.fullmatch(r"#?[0-9a-fA-F]{6}", str(other)):
-            raise ValueError(f"Rule '{name}' uses unknown colour '{other}' in 'otherwise'")
+        _validate_rule(cfg, rule, rule.get("name", f"rule {i}") if isinstance(rule, dict) else f"rule {i}",
+                       known_colors)
+    profiles = cfg.get("profiles", [])
+    if not isinstance(profiles, list):
+        raise ValueError("'profiles' must be a list")
+    seen: set[str] = set()
+    for i, prof in enumerate(profiles, 1):
+        if not isinstance(prof, dict):
+            raise ValueError(f"Profile {i} is not an object")
+        pname = str(prof.get("name", "")).strip()
+        if not pname or len(pname) > 60:
+            raise ValueError(f"Profile {i} needs a name (1–60 characters)")
+        if pname.lower() in seen or pname.lower() in RESERVED_PROFILE_NAMES:
+            raise ValueError(f"The profile name '{pname}' is used more than once or is reserved")
+        seen.add(pname.lower())
+        match = prof.get("match", [])
+        if not isinstance(match, list) or not all(isinstance(m, str) for m in match):
+            raise ValueError(f"Profile '{pname}': 'match' must be a list of texts")
+        if prof.get("mode", "extend") not in PROFILE_MODES:
+            raise ValueError(f"Profile '{pname}': 'mode' must be one of {', '.join(PROFILE_MODES)}")
+        if not isinstance(prof.get("rules", []), list):
+            raise ValueError(f"Profile '{pname}': 'rules' must be a list")
+        for j, rule in enumerate(prof.get("rules", []), 1):
+            rname = rule.get("name", f"rule {j}") if isinstance(rule, dict) else f"rule {j}"
+            _validate_rule(cfg, rule, f"{rname}' in profile '{pname}", known_colors)
+    sel = cfg.get("profile_select", "auto")
+    if not isinstance(sel, str):
+        raise ValueError("'profile_select' must be a text: auto, default or a profile name")
     return cfg
+
+
+def _validate_rule(cfg: dict, rule, name: str, known_colors: set[str]) -> None:
+    if not isinstance(rule, dict):
+        raise ValueError(f"Rule '{name}' is not an object")
+    for key in ("simvar", "device", "led", "states"):
+        if key not in rule:
+            raise ValueError(f"Rule '{name}' is missing '{key}'")
+    if rule["device"] not in cfg["devices"]:
+        raise ValueError(f"Rule '{name}' uses unknown device '{rule['device']}'")
+    if rule["led"] not in cfg["devices"][rule["device"]]["leds"]:
+        raise ValueError(f"Rule '{name}' uses unknown LED '{rule['led']}'")
+    for st in rule["states"]:
+        check_condition(st.get("if"), 0.0)  # raises ValueError on an invalid condition
+        if "color" in st and st["color"].lower() not in known_colors:
+            raise ValueError(f"Rule '{name}' uses unknown colour '{st['color']}'")
+        if "rgb" in st and not re.fullmatch(r"#?[0-9a-fA-F]{6}", str(st["rgb"])):
+            raise ValueError(f"Rule '{name}' has an invalid rgb '{st['rgb']}'")
+    oi = rule.get("only_if")
+    if oi is not None:
+        if not isinstance(oi, dict) or "simvar" not in oi:
+            raise ValueError(f"Rule '{name}': 'only_if' needs a simvar")
+        check_condition(oi.get("if"), 0.0)
+    other = rule.get("otherwise")
+    if other is not None and str(other).lower() not in known_colors \
+            and not re.fullmatch(r"#?[0-9a-fA-F]{6}", str(other)):
+        raise ValueError(f"Rule '{name}' uses unknown colour '{other}' in 'otherwise'")
+
+
+# --------------------------------------------------------------------------
+# Aircraft profiles: extra rules for some aircraft, chosen automatically from the aircraft name (needs MSFS
+# running and connected through SimConnect) or by hand. Off unless "profiles_enabled" is true.
+# --------------------------------------------------------------------------
+PROFILE_MODES = ("extend", "replace")
+RESERVED_PROFILE_NAMES = {"auto", "default", "all aircraft"}
+
+
+def profiles_on(cfg: dict) -> bool:
+    return bool(cfg.get("profiles_enabled")) and bool(cfg.get("profiles"))
+
+
+def pick_profile(cfg: dict, title: str | None, select: str | None = None) -> tuple[dict | None, str]:
+    """The profile to use: (profile, or None for the rules for all aircraft; why, in words).
+    select is 'auto' (by aircraft name), 'default' (rules for all aircraft) or a profile name."""
+    if not cfg.get("profiles_enabled"):
+        return None, "profiles are off"
+    if not cfg.get("profiles"):
+        return None, "no profiles yet"
+    profs = [p for p in cfg.get("profiles", []) if p.get("enabled", True) is not False]
+    select = select if select is not None else cfg.get("profile_select", "auto")
+    if select == "default":
+        return None, "chosen by hand"
+    if select and select != "auto":
+        chosen = next((p for p in profs if p.get("name") == select), None)
+        if chosen:
+            return chosen, "chosen by hand"
+    if not title:
+        return None, "automatic – no aircraft yet (MSFS not connected)"
+    t = title.lower()
+    for p in profs:
+        for m in p.get("match", []):
+            if m.strip() and m.strip().lower() in t:
+                return p, f"automatic – the aircraft name contains “{m.strip()}”"
+    return None, "automatic – no profile matches this aircraft"
+
+
+def effective_rules(cfg: dict, profile: dict | None) -> list[dict]:
+    """The rules in use with this profile. 'extend' (the default): the profile's rules take over the LEDs they
+    drive, and every other LED keeps the rules for all aircraft. 'replace': only the profile's rules."""
+    base = [r for r in cfg.get("rules", []) if isinstance(r, dict)]
+    if profile is None:
+        return base
+    own = [r for r in profile.get("rules", []) if isinstance(r, dict)]
+    if profile.get("mode", "extend") == "replace":
+        return own
+    devices = cfg["devices"]
+
+    def phys(r: dict):
+        return r.get("device"), devices.get(r.get("device"), {}).get("leds", {}).get(r.get("led"))
+
+    taken = {phys(r) for r in own if r.get("enabled", True) is not False}
+    return [r for r in base if phys(r) not in taken] + own
+
+
+def has_any_rules(cfg: dict) -> bool:
+    return bool(cfg.get("rules")) or any(p.get("rules") for p in cfg.get("profiles", []) if isinstance(p, dict))
 
 
 def validate_rules_strict(rules: list) -> None:
@@ -722,6 +853,10 @@ def name_usage(cfg: dict) -> dict[tuple[str, str], list[str]]:
     used: dict[tuple[str, str], list[str]] = {}
     for rule in cfg.get("rules", []):
         used.setdefault((rule["device"], rule["led"]), []).append("rule: " + rule.get("name", rule["simvar"]))
+    for prof in cfg.get("profiles", []):
+        for rule in prof.get("rules", []):
+            used.setdefault((rule["device"], rule["led"]), []).append(
+                f"rule: {rule.get('name', rule['simvar'])} (profile {prof.get('name')})")
     for dev, spec in cfg.get("startup", {}).items():
         if isinstance(spec, dict):
             for led in spec.get("leds", {}):
@@ -1128,14 +1263,16 @@ def file_mtime(p: Path) -> float:
         return 0.0
 
 
-def save_config(path: str, cfg: dict) -> Path:
-    """Backs up config.json and writes the new one safely (via a temporary file). Returns the backup."""
+def save_config(path: str, cfg: dict, backup_first: bool = True) -> Path:
+    """Backs up config.json and writes the new one safely (via a temporary file). Returns the backup.
+    backup_first=False is for small setting changes (e.g. the chosen profile) that should not push real
+    backups out of the backups folder."""
     src = Path(path)
     backups = src.with_name("backups")
     backups.mkdir(exist_ok=True)
     now = time.time()
     backup = backups / f"config-{time.strftime('%Y%m%d-%H%M%S', time.localtime(now))}-{int(now * 1000) % 1000:03d}.json"
-    if src.exists():
+    if src.exists() and backup_first:
         backup.write_bytes(src.read_bytes())
     for old in sorted(backups.glob("config-*.json"))[:-20]:  # keep the latest 20
         try:
@@ -1409,7 +1546,7 @@ class Bridge:
 
     def start(self) -> None:
         self._apply_base(self.cfg)
-        if not self.no_sim and self.cfg.get("rules"):
+        if not self.no_sim and has_any_rules(self.cfg):
             self.rules = SimRules(self.cfg, self.leds)
             self.rules.start()
         threading.Thread(target=self._run_startup, daemon=True, name="startup").start()
@@ -1418,10 +1555,17 @@ class Bridge:
         self.plan = startup_plan(cfg)
         self.leds.base = {(d, cfg["devices"][d]["leds"][l]): c for d, l, c in self.plan}
 
+    def active_rules(self, cfg: dict | None = None) -> list[dict]:
+        """The rules in use now: the rules for all aircraft, with the active profile's rules on top."""
+        cfg = cfg or self.cfg
+        if self.rules is not None and self.rules.cfg is cfg:
+            return self.rules.rules
+        return effective_rules(cfg, pick_profile(cfg, None)[0])
+
     def _rule_leds(self, cfg: dict) -> set[tuple[str, str]]:
         """Physical LEDs (device, command) that a rule drives."""
         out = set()
-        for r in cfg.get("rules", []):
+        for r in self.active_rules(cfg):
             names = cfg["devices"].get(r.get("device"), {}).get("leds", {})
             if r.get("led") in names:
                 out.add((r["device"], names[r["led"]]))
@@ -1470,12 +1614,12 @@ class Bridge:
             self.cfg = cfg
             self.leds.configure(cfg)
             self._apply_base(cfg)
-            rule_leds = {(r["device"], cfg["devices"][r["device"]]["leds"][r["led"]]) for r in cfg.get("rules", [])}
             if self.rules:
                 self.rules.configure(cfg)
-            elif not self.no_sim and cfg.get("rules"):
+            elif not self.no_sim and has_any_rules(cfg):
                 self.rules = SimRules(cfg, self.leds)
                 self.rules.start()
+            rule_leds = {(r["device"], cfg["devices"][r["device"]]["leds"][r["led"]]) for r in self.active_rules(cfg)}
             connected = bool(self.rules and self.rules.connected)
             # With MSFS connected the rules set their own LEDs in the next round; otherwise they get the base colour.
             skip = rule_leds if connected else set()
@@ -1532,7 +1676,8 @@ class Bridge:
                     raise ValueError(f"Cannot remove names that are in use: {uses}. "
                                      "Keep the name, or replace it with exactly one new name.")
                 rename_to = added[0]
-                for rule in cfg.get("rules", []):
+                all_rules = cfg.get("rules", []) + [r for p in cfg.get("profiles", []) for r in p.get("rules", [])]
+                for rule in all_rules:
                     if rule["device"] == device and rule["led"] in in_use:
                         rule["led"] = rename_to
                 spec = cfg.get("startup", {}).get(device)
@@ -1563,15 +1708,169 @@ class Bridge:
         except OSError:
             return 0.0
 
-    def set_rules(self, rules: list, based_on_mtime: float | None = None) -> str:
+    def _check_mtime(self, based_on_mtime: float | None) -> None:
+        if based_on_mtime is not None and abs(self.config_mtime() - float(based_on_mtime)) > 1e-3:
+            raise ValueError("config.json has changed since the rules were loaded (perhaps in another window "
+                             "or by hand). Reload the page and make the change again.")
+
+    def set_rules(self, rules: list, based_on_mtime: float | None = None, profile: str | None = None) -> str:
+        """Saves the rules for all aircraft, or (with profile) the rules of that profile."""
         validate_rules_strict(rules)
 
         def change(cfg: dict) -> str:
-            if based_on_mtime is not None and abs(self.config_mtime() - float(based_on_mtime)) > 1e-3:
-                raise ValueError("config.json has changed since the rules were loaded (perhaps in another window "
-                                 "or by hand). Reload the page and make the change again.")
-            cfg["rules"] = rules
-            return f"Rules saved ({len(rules)} rules)."
+            self._check_mtime(based_on_mtime)
+            if not profile:
+                cfg["rules"] = rules
+                return f"Rules saved ({len(rules)} rules)."
+            prof = next((p for p in cfg.get("profiles", []) if p.get("name") == profile), None)
+            if prof is None:
+                raise ValueError(f"There is no profile called '{profile}'")
+            prof["rules"] = rules
+            return f"Rules for the profile “{profile}” saved ({len(rules)} rules)."
+
+        return self._edit_config(change)
+
+    def set_profiles(self, profiles: list, based_on_mtime: float | None = None) -> str:
+        """Saves the list of profiles (names, aircraft names to match, mode, order and rules)."""
+        if not isinstance(profiles, list):
+            raise ValueError("'profiles' must be a list")
+        clean = []
+        for p in profiles:
+            if not isinstance(p, dict):
+                raise ValueError("Each profile must be an object")
+            validate_rules_strict(p.get("rules", []))
+            out = {"name": str(p.get("name", "")).strip(),
+                   "match": [m.strip() for m in p.get("match", []) if isinstance(m, str) and m.strip()]}
+            if p.get("mode", "extend") != "extend":
+                out["mode"] = p["mode"]
+            if p.get("enabled", True) is False:
+                out["enabled"] = False
+            out["rules"] = p.get("rules", [])
+            clean.append(out)
+
+        def change(cfg: dict) -> str:
+            self._check_mtime(based_on_mtime)
+            old = {p.get("name") for p in cfg.get("profiles", [])}
+            cfg["profiles"] = clean
+            if cfg.get("profile_select", "auto") not in ("auto", "default") and \
+                    cfg["profile_select"] not in {p["name"] for p in clean}:
+                cfg["profile_select"] = "auto"  # the profile chosen by hand is gone
+            new = {p["name"] for p in clean}
+            added, removed = new - old, old - new
+            msg = f"Profiles saved ({len(clean)})"
+            if len(added) == 1 and len(removed) == 1:
+                return msg + f" – renamed {next(iter(removed))} → {next(iter(added))}."
+            if added:
+                msg += f" – added: {', '.join(sorted(added))}"
+            if removed:
+                msg += f" – removed: {', '.join(sorted(removed))}"
+            return msg + "."
+
+        return self._edit_config(change)
+
+    def set_profiles_enabled(self, enabled: bool) -> str:
+        def change(cfg: dict) -> str:
+            cfg["profiles_enabled"] = bool(enabled)
+            if enabled and not cfg.get("profiles"):
+                return "Aircraft profiles are on. Make a profile in the Rules tab."
+            return "Aircraft profiles are on." if enabled else \
+                "Aircraft profiles are off – the rules for all aircraft are used. Your profiles are kept."
+
+        return self._edit_config(change)
+
+    def select_profile(self, select: str) -> str:
+        """Chooses a profile by hand ('auto', 'default' or a profile name). Kept until 'auto' is chosen
+        again, also after a restart. Saved without a backup and without reloading."""
+        select = str(select or "auto")
+        names = {p.get("name") for p in self.cfg.get("profiles", [])}
+        if select not in ("auto", "default") and select not in names:
+            raise ValueError(f"There is no profile called '{select}'")
+        with self._edit_lock:
+            cfg = load_config(self.config_path)
+            cfg["profile_select"] = select
+            save_config(self.config_path, cfg, backup_first=False)
+            self.cfg["profile_select"] = select
+            if self.rules:
+                self.rules.set_select(select)
+        st = self.profile_status()
+        what = "automatic" if select == "auto" else "chosen by hand"
+        return f"Profile: {st['active'] or 'all aircraft'} ({what})."
+
+    def profile_status(self) -> dict:
+        cfg = self.cfg
+        if self.rules is not None and self.rules.cfg is cfg:
+            active, why = self.rules.profile, self.rules.profile_why
+        else:
+            prof, why = pick_profile(cfg, None)
+            active = prof.get("name") if prof else None
+        return {"enabled": bool(cfg.get("profiles_enabled")), "select": cfg.get("profile_select", "auto"),
+                "active": active, "why": why, "names": [p.get("name") for p in cfg.get("profiles", [])]}
+
+    # ---- sharing profiles as files ----
+    def export_profile(self, name: str) -> dict:
+        cfg = self.cfg
+        prof = next((p for p in cfg.get("profiles", []) if p.get("name") == name), None)
+        if prof is None:
+            raise ValueError(f"There is no profile called '{name}'")
+        used_devs = {r["device"] for r in prof.get("rules", [])}
+        colours = _colour_names(prof.get("rules", [])) & set(cfg.get("colors", {}))
+        return {
+            "virpil_led_bridge_profile": 1,
+            "bridge_version": VERSION,
+            "exported": time.strftime("%Y-%m-%d"),
+            "profile": prof,
+            "devices": {d: {"name": cfg["devices"][d].get("name", d), "pid": str(cfg["devices"][d]["pid"]).upper()}
+                        for d in sorted(used_devs) if d in cfg["devices"]},
+            "colors": {c: cfg["colors"][c] for c in sorted(colours)},
+        }
+
+    def import_profile(self, data: dict) -> str:
+        """Adds a profile from an exported file. Devices are matched by name in config.json, PID or product
+        name; rules for devices or LEDs you do not have are left out (the message says which)."""
+        if not isinstance(data, dict) or data.get("virpil_led_bridge_profile") != 1 or \
+                not isinstance(data.get("profile"), dict):
+            raise ValueError("This is not a profile file exported by Virpil LED Bridge")
+        src = data["profile"]
+        src_devs = data.get("devices") or {}
+
+        def change(cfg: dict) -> str:
+            devs = cfg["devices"]
+            mapping: dict = {}
+            for d in {r.get("device") for r in src.get("rules", []) if isinstance(r, dict)}:
+                info = src_devs.get(d, {}) if isinstance(src_devs.get(d), dict) else {}
+                pid, nm = str(info.get("pid", "")).upper(), _norm_name(info.get("name", ""))
+                target = d if d in devs and (not pid or str(devs[d]["pid"]).upper() == pid) else None
+                target = target or next((k for k, v in devs.items() if pid and str(v["pid"]).upper() == pid), None)
+                target = target or next((k for k, v in devs.items() if nm and _norm_name(v.get("name", k)) == nm), None)
+                mapping[d] = target
+            rules, skipped = [], []
+            for r in src.get("rules", []):
+                if not isinstance(r, dict):
+                    continue
+                t = mapping.get(r.get("device"))
+                if t is None or r.get("led") not in devs[t]["leds"]:
+                    skipped.append(str(r.get("name", "?")))
+                    continue
+                rules.append({**r, "device": t})
+            validate_rules_strict(rules)
+            for c, v in (data.get("colors") or {}).items():
+                cfg.setdefault("colors", {}).setdefault(c, v)
+            names = {p.get("name", "").lower() for p in cfg.get("profiles", [])}
+            base = str(src.get("name", "Imported profile")).strip()[:50] or "Imported profile"
+            name, i = base, 2
+            while name.lower() in names or name.lower() in RESERVED_PROFILE_NAMES:
+                name, i = f"{base} ({i})", i + 1
+            new = {"name": name, "match": [m for m in src.get("match", []) if isinstance(m, str)]}
+            if src.get("mode", "extend") in PROFILE_MODES and src.get("mode", "extend") != "extend":
+                new["mode"] = src["mode"]
+            new["rules"] = rules
+            cfg.setdefault("profiles", []).append(new)
+            msg = f"Profile “{name}” imported with {len(rules)} rules"
+            if skipped:
+                msg += f"; left out (device or LED not found): {', '.join(skipped)}"
+            if not cfg.get("profiles_enabled"):
+                msg += ". Aircraft profiles are off – turn them on in Settings to use it"
+            return msg + "."
 
         return self._edit_config(change)
 
@@ -1581,6 +1880,9 @@ class Bridge:
         colors = {**DEFAULT_COLORS, **{k: tuple(v) for k, v in cfg.get("colors", {}).items()}}
         return {
             "rules": cfg.get("rules", []),
+            "profiles": cfg.get("profiles", []),
+            "profiles_enabled": bool(cfg.get("profiles_enabled")),
+            "profile_select": cfg.get("profile_select", "auto"),
             "colors": {k: "%02X%02X%02X" % tuple(quantize(c) for c in v) for k, v in colors.items()},
             "custom_colors": list(cfg.get("colors", {})),
             "mtime": self.config_mtime(),
@@ -1697,7 +1999,8 @@ class Bridge:
                 "aircraft": rules.aircraft if rules else None,
                 "connected_since": rules.connected_since if rules else None,
             },
-            "n_rules": len(cfg.get("rules", [])),
+            "n_rules": len(self.active_rules()),
+            "profile": self.profile_status(),
             "autostart": autostart_status(),
             "layouts_mtime": file_mtime(layouts_path(self.config_path)),
             "devices": devices,
@@ -1798,9 +2101,38 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                     if not self._from_ui():
                         return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
                     try:
-                        self._reply(200, {"ok": True, "message": bridge.set_rules(p["rules"], p.get("mtime"))})
+                        self._reply(200, {"ok": True, "message": bridge.set_rules(p["rules"], p.get("mtime"),
+                                                                                   p.get("profile"))})
                     except OSError as e:
                         self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
+                elif path.startswith("/api/profiles") and self.command == "POST":
+                    if not self._from_ui():
+                        return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
+                    try:
+                        if path == "/api/profiles":
+                            msg = bridge.set_profiles(p["profiles"], p.get("mtime"))
+                        elif path == "/api/profiles/enabled":
+                            msg = bridge.set_profiles_enabled(bool(p["enabled"]))
+                        elif path == "/api/profiles/select":
+                            msg = bridge.select_profile(p["select"])
+                        elif path == "/api/profiles/import":
+                            msg = bridge.import_profile(p["data"])
+                        else:
+                            return self._reply(404, {"ok": False, "error": "Unknown endpoint"})
+                        self._reply(200, {"ok": True, "message": msg, "profile": bridge.profile_status()})
+                    except OSError as e:
+                        self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
+                elif path == "/api/profiles/export":
+                    data = bridge.export_profile(p["name"])
+                    fname = re.sub(r"[^A-Za-z0-9._-]+", "-", data["profile"]["name"]).strip("-") or "profile"
+                    body = (dump_config(data)).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Disposition", f'attachment; filename="{fname}.vlb-profile.json"')
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    self.wfile.write(body)
                 elif path == "/api/log":
                     self._reply(200, {"lines": ring.since(int(p.get("after", 0) or 0))})
                 elif path == "/api/reload" and self.command == "POST":
@@ -1999,10 +2331,36 @@ def start_tray(bridge: Bridge, url: str):
             log.error("Start with Windows: %s", e)
             icon.notify(str(e), "LED Bridge")
 
+    def choose(select: str):
+        def run(icon, item):
+            try:
+                icon.notify(bridge.select_profile(select), "LED Bridge")
+            except (ValueError, OSError) as e:
+                log.error("Profile: %s", e)
+                icon.notify(str(e), "LED Bridge")
+        return run
+
+    def is_selected(select: str):
+        return lambda item: bridge.cfg.get("profile_select", "auto") == select
+
+    def profile_items():
+        items = [pystray.MenuItem("Automatic (by aircraft)", choose("auto"), checked=is_selected("auto"), radio=True),
+                 pystray.MenuItem("All aircraft", choose("default"), checked=is_selected("default"), radio=True),
+                 pystray.Menu.SEPARATOR]
+        for name in bridge.profile_status()["names"]:
+            items.append(pystray.MenuItem(name, choose(name), checked=is_selected(name), radio=True))
+        return items
+
+    def profile_title(item):
+        st = bridge.profile_status()
+        return f"Profile: {st['active'] or 'all aircraft'}"
+
     menu = pystray.Menu(
         pystray.MenuItem(f"Virpil LED Bridge v{VERSION}", lambda icon, item: None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Open control panel", open_ui, default=True),
+        pystray.MenuItem(profile_title, pystray.Menu(profile_items),
+                         visible=lambda item: profiles_on(bridge.cfg)),
         pystray.MenuItem("Reload config", reload_cfg),
         pystray.MenuItem("Start with Windows", toggle_autostart,
                          checked=lambda item: autostart_status()["enabled"],

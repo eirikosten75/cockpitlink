@@ -6,6 +6,25 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Aircraft profiles** (off by default – turn them on in *Settings*): extra rules for some aircraft. A profile's rules
+  take over the LEDs they drive, and every other LED keeps the rules for all aircraft (or, if you choose, only the
+  profile's rules are used).
+  - Chosen automatically from the aircraft name when MSFS is connected through SimConnect, or by hand at the top of
+    the control panel or in the tray menu; a choice made by hand stays until *Automatic* is chosen again.
+  - Made and edited in the *Rules* tab, including **+ Profile for this aircraft** and *Copy rules from all aircraft*.
+  - Profiles can be exported to a file and imported again – devices are matched by name, PID or product name.
+- The control panel is organised in tabs: *Panels*, *Rules*, *Drawings*, *Log* and *Settings*. The page remembers the
+  last tab, and each has its own address (e.g. `#rules`).
+
+### Changed
+- The drawing editor is now the *Drawings* tab instead of a pop-up window, with a list to choose the panel.
+- *Start with Windows* and *Find new devices* moved from the top bar to the *Settings* and *Panels* tabs.
+- A choice of profile made by hand is saved in `config.json` without making a backup, so it does not push real backups
+  out of the `backups` folder.
+
 ## [1.6] – 2026-11-22
 
 ### Added
