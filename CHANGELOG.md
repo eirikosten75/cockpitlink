@@ -6,6 +6,19 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed – needs VPC Software Suite VPC-JOY-20261027 and updated firmware
+- **Requires Virpil's VPC Software Suite VPC-JOY-20261027 (or newer) with the firmware of your devices updated.** That
+  firmware numbers the LEDs on the boards 01–20 instead of 05–24 (checked on Control Panel #1 and #2, SharKa-50 and
+  MongoosT-50CM3). The bridge now uses these numbers everywhere – the same as VPC Configuration Tool shows.
+- An existing `config.json` is converted automatically on the first start (05–24 → 01–20). The old file is copied to
+  `backups`; LED names and rules are unchanged. `config.example.json` and the drawing library use the new numbers.
+- The LED control status in the top bar warns when the VPC software is older than 20261027 (*VPC software too old*) or
+  when a device's VPC profile is in the old form, a sign of old firmware (*Update firmware*). *Settings → About* shows
+  the VPC software version.
+- *Find new devices* reads the new VPC profile form; stick bases are recognised by the grip named in the profile.
+
 ## [1.9] – 2026-11-23
 
 ### Added

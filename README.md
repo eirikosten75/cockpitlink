@@ -44,7 +44,9 @@ The rule editor – a simvar (or LVAR), the LED, and the states with their colou
 
 ## 1. Quick start
 
-1. Install the **VPC Software Suite** from Virpil (it contains `VPC_LED_Control.exe`).
+1. Install the **VPC Software Suite VPC-JOY-20261027 or newer** from Virpil (it contains `VPC_LED_Control.exe`), and
+   **update the firmware** of your Virpil devices with its VPC Configuration Tool. This is required from version 2.0:
+   the bridge uses the LED numbers of that firmware (see section 2).
 2. Plug in your Virpil devices, and unzip the files to a folder of your choice.
 3. Double-click `VirpilLedBridge.exe`. It needs no Python and has no console window. On the first start it finds
    your Virpil devices and writes `config.json` next to the exe (see section 2).
@@ -69,7 +71,7 @@ in (USB VID `3344`):
   checked LED names, a drawing and example rules (gear, flaps, parking brake, lights and more). They are recognised by
   USB PID, or by product name if the PID has been changed.
 - Other devices get the LEDs listed in their newest VPC Configuration Tool profile
-  (`%LOCALAPPDATA%\VIRPIL\PROFILES`), named `led01`, `led02` … If there is no profile, the bridge guesses LEDs 05–24;
+  (`%LOCALAPPDATA%\VIRPIL\PROFILES`), named `led01`, `led02` … If there is no profile (or it does not list the LEDs), the bridge guesses LEDs 01–20;
   check them with *Walk through one by one* below.
 - **Stick bases** (and other bases without LEDs of their own) are listed too, with the four LEDs a grip can have:
   `grip_led1`–`grip_led4` (commands 01–04). They are not ticked, since many grips have no LEDs. Grips are swapped
@@ -85,8 +87,13 @@ in (USB VID `3344`):
 it and restart the bridge.
 
 `config.json` describes each Virpil device by its USB `vid`/`pid` (Virpil's VID is `3344`; VPC Configuration Tool shows
-the PID) and lists its LEDs by **command number** – the number `VPC_LED_Control.exe` uses for that LED. On the boards
-tested, 01–04 are the device LEDs and 05–24 are the LEDs on the board, in the same order as in VPC Configuration Tool.
+the PID) and lists its LEDs by **command number** – the number `VPC_LED_Control.exe` uses for that LED, the same as
+VPC Configuration Tool shows. With firmware 20261027 the LEDs on the board are **01–20** and slave boards start at 21.
+
+**Older firmware** numbered the board LEDs 05–24. Version 2.0 requires firmware 20261027: when it starts with a
+`config.json` from an older version, it converts the numbers once (05–24 → 01–20; the old file goes to `backups`, and
+LED names and rules are unchanged). The top bar warns if the VPC software is older than 20261027, or if a device's VPC
+profile is in the old form (a sign of old firmware).
 
 You do not need to work out which physical LED is which by hand:
 
@@ -99,7 +106,7 @@ You do not need to work out which physical LED is which by hand:
 
 **To test one LED by hand** from a command prompt:
 ```
-"C:\Program Files (x86)\VPC Software Suite\tools\VPC_LED_Control.exe" 3344 025B 05 00 FF 00
+"C:\Program Files (x86)\VPC Software Suite\tools\VPC_LED_Control.exe" 3344 025B 01 00 FF 00
 ```
 If that LED lights green, the format is right. LEDs that should be driven from outside may need to be configured in
 VPC Configuration Tool so that the buttons themselves do not control them.
@@ -348,6 +355,9 @@ are listed in [CHANGELOG.md](CHANGELOG.md).
 - **“Could not find VPC_LED_Control.exe”** (red *VPC_LED_Control not found* at the top): wrong path in `config.json`.
 - **VPC_LED_Control fails** (red *LED writes failing*): VPC_LED_Control must be the same version as the VPC
   Configuration Tool the firmware setup was made with – after updating the VPC Software Suite, update the firmware too.
+- **The wrong LEDs light up, and the last few never do:** the device still has firmware older than 20261027 (its LEDs
+  are numbered 4 higher). Update its firmware in VPC Configuration Tool. The top bar says *Update firmware* when a
+  device's VPC profile is in the old form, and *VPC software too old* if VPC-JOY-20261027 is not installed.
 - **A device is shown as not plugged in** (yellow, e.g. *4/5*): check the cable, or whether its PID has changed in the
   VPC Configuration Tool (then press *Find new devices*).
 - **The control panel looks out of date:** press F5. The page also reloads itself when the bridge restarts.

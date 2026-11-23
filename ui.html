@@ -812,10 +812,11 @@ function buildSetup(dev) {
       <span style="flex:1"></span>
       <button class="small primary" type="button" data-act="walk">Walk through one by one</button>
     </div>
+
     <div class="rows"></div>
     <div class="bar">
       <span class="hint" style="margin:0">Missing an LED? Try command number</span>
-      <input type="number" class="newcmd" min="1" max="54" placeholder="05" aria-label="Command number to try">
+      <input type="number" class="newcmd" min="1" max="54" placeholder="01" aria-label="Command number to try (as in VPC Configuration Tool)">
       <button class="small" type="button" data-act="trycmd" aria-label="Show this command number on the panel">Show</button>
       <input type="text" class="newnames" placeholder="name, e.g. b3" aria-label="Names for the new LED">
       <button class="small" type="button" data-act="addcmd">Add</button>
@@ -1121,11 +1122,17 @@ function renderLedPill(lc) {
   else if (lc.state === "error") { cls = "err"; text = "LED writes failing" + devs; }
   else if (lc.state === "ready") { cls = "warn"; text = "LEDs ready" + devs; }
   if (cls === "ok" && d.known && d.connected < d.total) cls = "warn";
+  const oldFw = lc.old_firmware || [];
+  if (cls !== "err" && lc.vpc_ok === false) { cls = "err"; text = "VPC software too old"; }
+  else if (cls !== "err" && oldFw.length) { cls = "warn"; text = `Update firmware (${oldFw.length})` + devs; }
   const tip = [
     lc.state === "missing" ? `Could not find ${lc.exe} – fix "vpc_led_control" → "exe" in config.json and press Reload config.` : `VPC_LED_Control: ${lc.exe}`,
     `Writes: ${lc.ok} OK, ${lc.failed} failed · last OK ${ago(lc.last_ok)}` + (lc.failed ? ` · last failure ${ago(lc.last_fail)}` : ""),
     lc.last_error ? `Last error: ${lc.last_error}` : "",
     d.known ? (d.missing.length ? `Not plugged in: ${d.missing.join(", ")}` : "All devices in config.json are plugged in.") : "",
+    lc.vpc_version ? `VPC Software Suite: VPC-JOY-${lc.vpc_version}` + (lc.vpc_ok === false ? ` – required: ${lc.vpc_required} or newer, with updated firmware` : " (required: " + lc.vpc_required + " or newer)")
+                   : `VPC Software Suite version not found (required: VPC-JOY-${lc.vpc_required} or newer)`,
+    oldFw.length ? `Probably old firmware (VPC profile in the old form): ${oldFw.join(", ")} – update the firmware in VPC Configuration Tool ${lc.vpc_required}.` : "",
   ].filter(Boolean).join("\n");
   const el = $("pLed");
   el.className = "pill " + cls;
@@ -1317,7 +1324,9 @@ $("chkProfiles").addEventListener("change", async (e) => {
 });
 
 function renderAbout(st) {
+  const lcv = st.led_control || {};
   const items = [["Version", st.version], ["Config", st.config_path], ["Mode", st.dry_run ? "dry run (LEDs are not written)" : "normal"],
+                 ["VPC software", (lcv.vpc_version ? "VPC-JOY-" + lcv.vpc_version : "not found") + ` (required: ${lcv.vpc_required || "20261027"} or newer, with updated firmware)`],
                  ["MSFS", st.sim.enabled ? (st.sim.connected ? "connected" : "waiting for MSFS") : "off"]];
   const html = items.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
   if ($("aboutList").dataset.html !== html) { $("aboutList").dataset.html = html; $("aboutList").innerHTML = html; }

@@ -1,7 +1,7 @@
 {
   "title": "MongoosT-50CM3",
   "status": "verified",
-  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026. Checked again with firmware 20261027 (LED numbers 01-20), November 2026.",
   "pids": {
     "0198": "MongoosT-50CM3"
   },
@@ -9,12 +9,12 @@
     "VPC MongoosT-50CM3"
   ],
   "commands": {
-    "b3": "07",
-    "b4": "08",
-    "b5": "09",
-    "b6": "10",
-    "b1": "05",
-    "b2": "06"
+    "b3": "03",
+    "b4": "04",
+    "b5": "05",
+    "b6": "06",
+    "b1": "01",
+    "b2": "02"
   },
   "aspect": "1025 / 1120",
   "btn": 9.4,

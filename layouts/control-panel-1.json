@@ -1,7 +1,7 @@
 {
   "title": "Control Panel #1",
   "status": "verified",
-  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026. Checked again with firmware 20261027 (LED numbers 01-20), November 2026.",
   "pids": {
     "0259": "Control Panel #1",
     "8259": "Control Panel #1 (left)"
@@ -11,18 +11,18 @@
     "LEFT VPC Panel #1"
   ],
   "commands": {
-    "b10": "05",
-    "b11": "06",
-    "b12": "07",
-    "b7": "08",
-    "b8": "09",
-    "b9": "10",
-    "b6": "11",
-    "b4": "12",
-    "b2": "13",
-    "b5": "14",
-    "b3": "15",
-    "b1": "16"
+    "b10": "01",
+    "b11": "02",
+    "b12": "03",
+    "b7": "04",
+    "b8": "05",
+    "b9": "06",
+    "b6": "07",
+    "b4": "08",
+    "b2": "09",
+    "b5": "10",
+    "b3": "11",
+    "b1": "12"
   },
   "aspect": "1120 / 1300",
   "btn": 9.6,

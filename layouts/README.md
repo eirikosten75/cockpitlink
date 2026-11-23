@@ -53,7 +53,8 @@ Own a Control Panel #3, a VMAX Prime Throttle or a Vector part? Please check the
   Configuration Tool). For a grip, the grip name in the VPC profile (e.g. `VPC WarBRD Grip`). With no `pids` and no
   `product_names`, the drawing can only be chosen by hand.
 - `key` (optional): the drawing's key when it has no PID, e.g. `VECTOR_GEAR` (1–16 capital letters, digits or `_`).
-- `commands`: LED name → command number for `VPC_LED_Control.exe` (as in `config.json`). Used for new devices found
+- `commands`: LED name → command number for `VPC_LED_Control.exe` (as in `config.json`), with the numbering of
+  Virpil firmware 20261027 (board LEDs 01–20, as VPC Configuration Tool shows them). Used for new devices found
   by **Find new devices**. Leave it out if you do not know them.
 - `aspect`, `btn`, `deco`, `leds`: the drawing, in the same format as `layouts.json` (README, section 5). The names in
   `leds` must be the names in `commands`.

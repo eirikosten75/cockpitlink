@@ -1,7 +1,7 @@
 {
   "title": "Control Panel #2",
   "status": "verified",
-  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026. Checked again with firmware 20261027 (LED numbers 01-20), November 2026.",
   "pids": {
     "025B": "Control Panel #2"
   },
@@ -9,23 +9,23 @@
     "VPC Panel #2"
   ],
   "commands": {
-    "b1": "06",
-    "b2": "05",
-    "b3": "08",
-    "b4": "07",
-    "ind_top": "09",
-    "ind_center": "10",
-    "ind_bottom_left": "11",
-    "gear_left": "12",
-    "gear_nose": "13",
-    "gear_right": "14",
-    "ind_bottom_right": "15",
-    "b5": "21",
-    "b6": "18",
-    "b7": "20",
-    "b8": "17",
-    "b9": "19",
-    "b10": "16"
+    "b1": "02",
+    "b2": "01",
+    "b3": "04",
+    "b4": "03",
+    "ind_top": "05",
+    "ind_center": "06",
+    "ind_bottom_left": "07",
+    "gear_left": "08",
+    "gear_nose": "09",
+    "gear_right": "10",
+    "ind_bottom_right": "11",
+    "b5": "17",
+    "b6": "14",
+    "b7": "16",
+    "b8": "13",
+    "b9": "15",
+    "b10": "12"
   },
   "aspect": "1310 / 1490",
   "deco": [

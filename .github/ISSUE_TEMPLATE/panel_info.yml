@@ -27,13 +27,13 @@ body:
     id: firmware
     attributes:
       label: Firmware / VPC software version
-      description: The firmware date shown in the VPC Configuration Tool, e.g. 20240814.
+      description: The firmware date shown in the VPC Configuration Tool, e.g. 20261027 (required since bridge 2.0).
   - type: textarea
     id: leds
     attributes:
       label: LED names and command numbers
       description: |
-        The device's entry from your `config.json` after *Walk through one by one* (the "leds" part is enough), or a list like "B1 = 16, B2 = 13 …". Use the labels printed on the panel where it has them.
+        The device's entry from your `config.json` after *Walk through one by one* (the "leds" part is enough), or a list like "B1 = 12, B2 = 09 …" (numbers as VPC Configuration Tool 20261027 shows them). Use the labels printed on the panel where it has them.
       render: json
     validations:
       required: true

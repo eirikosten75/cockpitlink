@@ -296,6 +296,7 @@ class LedWriter:
             self._write(exe, template, dev, phys[1], rgb)
 
     def _write(self, exe: str, template: str, dev: dict, cmd: str, rgb: tuple[int, int, int]) -> None:
+        name = next((k for k, v in self.devices.items() if v is dev), str(dev.get("pid")))
         args = template.format(
             exe=exe, vid=dev["vid"], pid=dev["pid"], cmd=cmd,
             r="%02X" % rgb[0], g="%02X" % rgb[1], b="%02X" % rgb[2],
@@ -303,7 +304,6 @@ class LedWriter:
         if self.dry_run:
             log.debug("DRY-RUN: %s", args)
             return
-        name = next((k for k, v in self.devices.items() if v is dev), str(dev.get("pid")))
         try:
             flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
             res = subprocess.run(args, shell=False if os.name == "nt" else True,
@@ -740,6 +740,12 @@ def load_config(path: str) -> dict:
         raise ValueError(f"Could not find {path}") from None
     except json.JSONDecodeError as e:
         raise ValueError(f"config.json is not valid JSON (line {e.lineno}, column {e.colno}): {e.msg}") from None
+    if isinstance(cfg, dict) and migrate_led_numbers(cfg):
+        validate_config(cfg)
+        backup = save_config(path, cfg)
+        log.warning("config.json converted to the LED numbers of Virpil firmware %s (board LEDs 05-24 are now "
+                    "01-20; your LED names and rules are unchanged). The old file is in backups\\%s.",
+                    REQUIRED_VPC_VERSION, backup.name)
     return validate_config(cfg)
 
 
@@ -1354,8 +1360,8 @@ def save_config(path: str, cfg: dict, backup_first: bool = True) -> Path:
 # Finding connected Virpil devices, and the starter config for new users
 # --------------------------------------------------------------------------
 VIRPIL_VID = "3344"
-# LED commands to try when no VPC profile says which LEDs a device has (05-24 = LEDs on the board).
-FALLBACK_LED_CMDS = [f"{n:02d}" for n in range(5, 25)]
+# LED commands to try when no VPC profile says which LEDs a device has (01-20 = LEDs on the board).
+FALLBACK_LED_CMDS = [f"{n:02d}" for n in range(1, 21)]
 
 
 def connected_usb_devices(vid: str = VIRPIL_VID) -> list[str]:
@@ -1416,26 +1422,79 @@ def vpc_profile_leds() -> dict[str, dict]:
         pid = str(pid_el.get("Data", "")).strip().upper()
         if not re.fullmatch(r"[0-9A-F]{4}", pid) or (pid in newest and newest[pid][0] >= mtime):
             continue
+        # The VPC software from October 2026 saves profiles in a new form (cnt_led_rgb_01 instead of cnt_led_rgb_1, no
+        # LED types). Its firmware numbers the board LEDs 01-20 instead of 05-24, see LED_NUMBERS.
+        new_form = any(re.fullmatch(r"cnt_led_rgb_\d\d", el.tag) for el in out.iter())
         types = {el.tag[12:]: el.get("Data", "") for el in out.iter() if el.tag.startswith("cnt_led_typ_")}
         cmds = set()
-        for el in out.iter():
-            n, tag = el.tag[12:], str(el.get("Tag", ""))
-            if el.tag.startswith("cnt_led_rgb_") and n.isdigit() and types.get(n, "---") != "---" \
-                    and tag.isdigit() and 1 <= int(tag) <= 54:
-                cmds.add(f"{int(tag):02d}")
+        if not new_form:
+            for el in out.iter():
+                n, tag = el.tag[12:], str(el.get("Tag", ""))
+                if el.tag.startswith("cnt_led_rgb_") and n.isdigit() and types.get(n, "---") != "---" \
+                        and tag.isdigit() and 1 <= int(tag) <= 54:
+                    cmds.add(f"{int(tag) - 4:02d}" if int(tag) >= 5 else f"{int(tag):02d}")  # old firmware: 05-24
         name = re.sub(r"^\d{8}-\d{6}-", "", f.stem).strip()
-        # stk_led_rgb_1..4: LEDs in a grip on the base (commands 01-04). The profile has them for every stick base,
-        # whether the grip has LEDs or not, so they only mark the device as a base that may have grip LEDs.
-        grip = any(el.tag.startswith("stk_led_rgb_") for el in xml.iter())
         # The grip chosen in the VPC Configuration Tool, e.g. "[FLIGHT GRIP] VPC WarBRD Grip" -> "VPC WarBRD Grip".
         g = xml.find(".//pfl_grip")
-        grip_name = re.sub(r"^\[[^\]]*\]\s*", "", str(g.get("Data", "")) if g is not None else "").strip()
-        newest[pid] = (mtime, {"name": name, "cmds": sorted(cmds), "grip": grip, "grip_name": grip_name})
+        grip_data = str(g.get("Data", "")) if g is not None else ""
+        grip_name = re.sub(r"^\[[^\]]*\]\s*", "", grip_data).strip()
+        # A base that may have grip LEDs: the classic form lists them (stk_led_rgb_1..4, commands 01-04) for every
+        # stick base, whether the grip has LEDs or not; the new form names a [FLIGHT GRIP].
+        grip = any(el.tag.startswith("stk_led_rgb_") for el in xml.iter()) or grip_data.upper().startswith("[FLIGHT GRIP]")
+        newest[pid] = (mtime, {"name": name, "cmds": sorted(cmds), "grip": grip, "grip_name": grip_name,
+                               "numbering": "2026" if new_form else "classic", "leds_known": not new_form})
     return {pid: info for pid, (_, info) in newest.items()}
 
 
 # The LEDs a grip can have, as named for a stick base found by Find new devices (commands 01-04).
 GRIP_LED_CMDS = {f"grip_led{i}": f"{i:02d}" for i in range(1, 5)}
+
+# LED numbers: since 2.0 the bridge uses the numbers of Virpil firmware 20261027 (VPC Software Suite VPC-JOY-20261027),
+# the same as VPC Configuration Tool shows: board LEDs 01-20, slave boards from 21. Older firmware counted the board
+# LEDs from 05; a config.json from before 2.0 is converted once (see migrate_led_numbers).
+LED_NUMBERS = "vpc-20261027"
+REQUIRED_VPC_VERSION = "20261027"
+
+
+def migrate_led_numbers(cfg: dict) -> bool:
+    """Converts a config.json made for the old firmware (board LEDs 05-24) to the new numbers (01-20).
+    Commands 01-04 (grip LEDs) are kept. Returns True if something was changed."""
+    if cfg.get("led_numbers") == LED_NUMBERS:
+        return False
+    for spec in cfg.get("devices", {}).values():
+        if isinstance(spec, dict) and isinstance(spec.get("leds"), dict):
+            spec["leds"] = {n: (f"{int(c) - 4:02d}" if str(c).isdigit() and int(c) >= 5 else c)
+                            for n, c in spec["leds"].items()}
+            spec.pop("led_numbering", None)
+    cfg["led_numbers"] = LED_NUMBERS
+    return True
+
+
+_vpc_version_cache: dict = {}
+
+
+def vpc_software_version(led_control_exe: str) -> str | None:
+    """The VPC Software Suite version (e.g. "20261027"), read from VPC_JOY_SETUP.exe next to the tools folder that
+    VPC_LED_Control.exe is in. Cached by file time, as the file is large. None if it cannot be found."""
+    exe = Path(led_control_exe).parent.parent / "VPC_JOY_SETUP.exe"
+    try:
+        st = exe.stat()
+    except OSError:
+        return None
+    key = (str(exe), st.st_mtime, st.st_size)
+    if key not in _vpc_version_cache:
+        version = None
+        try:
+            data = exe.read_bytes()
+            m = re.search(rb"VPC-JOY-(\d{8})", data) or \
+                re.search(rb"V\x00P\x00C\x00-\x00J\x00O\x00Y\x00-\x00((?:\d\x00){8})", data)
+            if m:
+                version = m.group(1).replace(b"\x00", b"").decode()
+        except OSError:
+            pass
+        _vpc_version_cache.clear()
+        _vpc_version_cache[key] = version
+    return _vpc_version_cache[key]
 
 
 DEFAULT_BASE_CONFIG = {
@@ -1443,7 +1502,7 @@ DEFAULT_BASE_CONFIG = {
                         "command_template": "\"{exe}\" {vid} {pid} {cmd} {r} {g} {b}"},
     "api": {"host": "127.0.0.1", "http_port": 8765, "udp_port": 8766},
     "sim_poll_ms": 200, "blink_interval_ms": 500, "on_disconnect_color": "startup", "on_exit": "startup",
-    "devices": {}, "rules": [],
+    "led_numbers": LED_NUMBERS, "devices": {}, "rules": [],
 }
 
 
@@ -1511,7 +1570,7 @@ def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
             g = library["by_name"].get(_norm_name(prof["grip_name"]))
             if g and g["commands"]:
                 lib, grip_base = g, False
-        if prof is not None and not prof["cmds"] and not known and not lib and not grip_base:
+        if prof is not None and prof.get("leds_known", True) and not prof["cmds"] and not known and not lib                 and not grip_base:
             log.info("Found %s (PID %s), but its VPC profile has no LEDs – left out.", name, pid)
             continue
         if known:
@@ -1536,10 +1595,11 @@ def detect_devices(config_path: str, cfg: dict | None = None) -> list[dict]:
             source = "grip"
         else:
             key = _device_key(name, taken)
-            cmds = prof["cmds"] if prof else FALLBACK_LED_CMDS
+            # The new profile form (2026) does not say which LEDs exist: guess 05-24 like without a profile.
+            cmds = prof["cmds"] if prof and prof["cmds"] else FALLBACK_LED_CMDS
             spec = {"name": name, "vid": VIRPIL_VID, "pid": pid,
                     "leds": {f"led{i:02d}": c for i, c in enumerate(cmds, 1)}}
-            source = "profile" if prof else "guess"
+            source = "profile" if prof and prof["cmds"] else "guess"
         taken.add(key)
         found.append({"key": key, "pid": pid, "name": spec.get("name", name), "source": source, "in_config": False,
                       "n_leds": len(set(spec["leds"].values())), "spec": spec,
@@ -2109,7 +2169,34 @@ class Bridge:
             missing = [v.get("name", k) for k, v in devs.items() if str(v["pid"]).upper() not in present]
             st["devices"] = {"known": True, "total": len(devs), "connected": len(devs) - len(missing),
                              "missing": missing}
+        st.update(self.requirement_status())
         return st
+
+    def requirement_status(self) -> dict:
+        """Is the VPC software VPC-JOY-20261027 (or newer) installed, and were the devices set up with it? A device
+        whose newest VPC profile is in the old form most likely still has the old firmware (other LED numbers).
+        Checked at most every 30 s."""
+        now = time.monotonic()
+        if now - getattr(self, "_req_checked", -1e9) > 30.0:
+            version = vpc_software_version(self.leds.exe)
+            try:
+                profiles = vpc_profile_leds()
+            except Exception:  # noqa: BLE001
+                profiles = {}
+            old = [v.get("name", k) for k, v in self.cfg["devices"].items()
+                   if profiles.get(str(v["pid"]).upper(), {}).get("numbering") == "classic"]
+            self._req = {"vpc_version": version, "vpc_required": REQUIRED_VPC_VERSION,
+                         "vpc_ok": None if version is None else version >= REQUIRED_VPC_VERSION,
+                         "old_firmware": old}
+            if self._req["vpc_ok"] is False:
+                log.warning("VPC Software Suite %s is older than the required %s – update it and the firmware of "
+                            "your devices.", version, REQUIRED_VPC_VERSION)
+            if old:
+                log.warning("These devices seem to have firmware older than %s (their VPC profile is in the old "
+                            "form): %s. Update their firmware in VPC Configuration Tool.", REQUIRED_VPC_VERSION,
+                            ", ".join(old))
+            self._req_checked = now
+        return dict(self._req)
 
     def status(self) -> dict:
         cfg = self.cfg

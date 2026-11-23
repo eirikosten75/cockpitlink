@@ -1,12 +1,18 @@
 {
   "title": "VMAX Prime Throttle",
   "status": "unverified",
-  "checked": "Drawn from a product picture, not checked on a real throttle. Only the six KEYBOARD buttons are included; their command numbers (05-10, row by row) are assumed to match the MongoosT-50CM3 throttle's B1-B6. Other lights (EMERG B7, the E1/E2 rings, MODE) may also be LEDs but their numbers are not known - find them with Setup > Try command number. The USB PID is not known yet, so the throttle is recognised by its product name.",
+  "checked": "Drawn from a product picture, not checked on a real throttle. Only the six KEYBOARD buttons are included; their command numbers (01-06, row by row) are assumed to match the MongoosT-50CM3 throttle's B1-B6. Other lights (EMERG B7, the E1/E2 rings, MODE) may also be LEDs but their numbers are not known - find them with Setup > Try command number. The USB PID is not known yet, so the throttle is recognised by its product name.",
   "pids": {},
-  "product_names": ["VPC VMAX Prime Throttle"],
+  "product_names": [
+    "VPC VMAX Prime Throttle"
+  ],
   "commands": {
-    "b1": "05", "b2": "06", "b3": "07",
-    "b4": "08", "b5": "09", "b6": "10"
+    "b1": "01",
+    "b2": "02",
+    "b3": "03",
+    "b4": "04",
+    "b5": "05",
+    "b6": "06"
   },
   "aspect": "428 / 378",
   "btn": 9.5,

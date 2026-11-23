@@ -1,7 +1,7 @@
 {
   "title": "SharKa-50 Panel",
   "status": "verified",
-  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026.",
+  "checked": "LED names and positions checked on a real panel (Walk through one by one), November 2026. Checked again with firmware 20261027 (LED numbers 01-20), November 2026.",
   "pids": {
     "025D": "SharKa-50 Panel"
   },
@@ -9,16 +9,16 @@
     "VPC SharKa-50 Panel"
   ],
   "commands": {
-    "rst": "05",
-    "b5": "06",
-    "b6": "07",
-    "dir": "08",
-    "b8": "09",
-    "b7": "10",
-    "b3": "11",
-    "b1": "12",
-    "b2": "13",
-    "b4": "14"
+    "rst": "01",
+    "b5": "02",
+    "b6": "03",
+    "dir": "04",
+    "b8": "05",
+    "b7": "06",
+    "b3": "07",
+    "b1": "08",
+    "b2": "09",
+    "b4": "10"
   },
   "aspect": "930 / 1005",
   "btn": 10,
