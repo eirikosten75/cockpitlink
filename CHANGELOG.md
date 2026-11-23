@@ -6,7 +6,7 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.0] – 2026-11-23
 
 ### Changed – needs VPC Software Suite VPC-JOY-20261027 and updated firmware
 - **Requires Virpil's VPC Software Suite VPC-JOY-20261027 (or newer) with the firmware of your devices updated.** That
@@ -172,6 +172,7 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
+[2.0]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v2.0
 [1.9]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.9
 [1.8]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.8
 [1.7.1]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.7.1
