@@ -648,8 +648,8 @@ function buildDevice(dev) {
   drawBtn.textContent = layout ? "Edit drawing" : "Make drawing";
   drawBtn.title = layout ? "Move the LEDs, draw boxes, trace a photo" : "Make a drawing of this panel";
   drawBtn.addEventListener("click", () => {
-    if (ed && ed.devId !== dev.id && edDirty() && !confirm("Open another panel without saving the changes to the drawing you are editing?")) { showTab("drawings"); return; }
-    if (ed && ed.devId === dev.id) { showTab("drawings"); return; }
+    if (ed && sameDrawing(ed.devId, dev.id)) { showTab("drawings"); return; }
+    if (ed && edDirty() && !confirm("Open another panel without saving the changes to the drawing you are editing?")) { showTab("drawings"); return; }
     ed = null;
     openDrawEditor(dev.id);
   });
@@ -1366,9 +1366,37 @@ function openDrawEditor(devId) {
   edFields();
   edRender();
   edProps();
-  $("edDevice").innerHTML = (lastStatus?.devices || []).map((d) => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join("");
-  $("edDevice").value = devId;
+  const groups = drawingGroups();
+  $("edDevice").innerHTML = groups.map((g) => {
+    const label = g.devs.length > 1 ? `${g.title} – ${g.devs.map((d) => d.name).join(", ")}` : g.devs[0].name;
+    return `<option value="${esc(g.devs[0].id)}">${esc(label)}</option>`;
+  }).join("");
+  $("edDevice").value = groups.find((g) => g.devs.some((d) => d.id === devId))?.devs[0].id ?? devId;
   showTab("drawings");
+}
+
+// Panels that share one drawing – left/right versions in the library, same_as in layouts.json, or the same
+// "layout" in config.json – are one entry in the Drawings list: editing it changes the drawing for all of them.
+function drawingGroupKey(dev) {
+  const key = layoutKey(dev);
+  const lay = LAYOUTS[key];
+  if (lay?.shared_with) return lay.shared_with;
+  const pids = lay?.library?.pids || [];
+  if (lay?.source === "library" && pids.length > 1 && LAYOUTS[pids[0]]?.source === "library") return pids[0];
+  return key;
+}
+function drawingGroups() {
+  const groups = new Map();
+  for (const d of lastStatus?.devices || []) {
+    const k = drawingGroupKey(d);
+    if (!groups.has(k)) groups.set(k, { key: k, title: LAYOUTS[k]?.title || d.name, devs: [] });
+    groups.get(k).devs.push(d);
+  }
+  return [...groups.values()];
+}
+function sameDrawing(idA, idB) {
+  const a = devById(idA), b = devById(idB);
+  return !!(a && b && drawingGroupKey(a) === drawingGroupKey(b));
 }
 
 // The Drawings tab: open the chosen panel (the first one if none is open yet)
@@ -1379,8 +1407,9 @@ function openDrawingsTab() {
 }
 $("edDevice").addEventListener("change", () => {
   const id = $("edDevice").value;
-  if (ed && id !== ed.devId && edDirty() && !confirm("Switch panel without saving the changes to this drawing?")) {
-    $("edDevice").value = ed.devId;
+  if (ed && sameDrawing(id, ed.devId)) return;
+  if (ed && edDirty() && !confirm("Switch panel without saving the changes to this drawing?")) {
+    $("edDevice").value = drawingGroups().find((g) => g.devs.some((d) => d.id === ed.devId))?.devs[0].id ?? ed.devId;
     return;
   }
   ed = null;

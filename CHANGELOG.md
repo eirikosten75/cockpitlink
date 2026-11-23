@@ -6,6 +6,12 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The panel list in the *Drawings* tab shows each drawing once: panels that share a drawing (such as the left- and
+  right-hand Control Panel #1) are one entry, e.g. "Control Panel #1 – VPC Panel #1, L-VPC Panel #1".
+
 ## [1.7] – 2026-11-23
 
 ### Added
