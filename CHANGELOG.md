@@ -6,7 +6,7 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.8] – 2026-11-23
 
 ### Added
 - **Control Panel #3** in the drawing library, marked *unverified*: its own drawing with its button labels (B1–B4,
@@ -147,6 +147,7 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
+[1.8]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.8
 [1.7.1]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.7.1
 [1.7]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.7
 [1.6]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.6
