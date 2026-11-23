@@ -112,8 +112,12 @@ Other values are rounded to the nearest of these (tested: 20 turns the LED off).
 The control panel has five tabs. The page remembers the last one, and you can link straight to one
 (e.g. http://127.0.0.1:8765/#rules).
 
-- **Top bar (always shown):** MSFS connection and aircraft, number of rules in use, uptime, when the config was last
-  loaded, and – when aircraft profiles are on – the profile in use (section 4). *Reload config* applies changes made to
+- **Top bar (always shown):** MSFS connection and aircraft, **LED control**, number of rules in use, uptime, when the
+  config was last loaded, and – when aircraft profiles are on – the profile in use (section 4). The LED control status
+  is green (*LEDs OK · 5/5*) when `VPC_LED_Control.exe` is found, the last write to a panel worked and all devices in
+  `config.json` are plugged in; yellow when a device is missing or nothing has been written yet; red when the exe is
+  not found or writes fail. Hover over it for the path, the number of writes and failures, the last error and which
+  devices are not plugged in. *Reload config* applies changes made to
   `config.json` by hand without a restart. If the file is invalid, the old config is kept and you are told what is
   wrong. *Quit bridge* sets the LEDs to their base colours and exits.
 - **Panels:** your devices with their LEDs live, *Setup* for naming LEDs, and *Find new devices*.
@@ -341,9 +345,11 @@ are listed in [CHANGELOG.md](CHANGELOG.md).
 ## Troubleshooting
 
 - **Nothing happens:** run with `-v` and look at the command line that is logged. Run the same command by hand.
-- **“Could not find VPC_LED_Control.exe”:** wrong path in `config.json`.
-- **VPC_LED_Control fails:** VPC_LED_Control must be the same version as the VPC Configuration Tool the firmware
-  setup was made with.
+- **“Could not find VPC_LED_Control.exe”** (red *VPC_LED_Control not found* at the top): wrong path in `config.json`.
+- **VPC_LED_Control fails** (red *LED writes failing*): VPC_LED_Control must be the same version as the VPC
+  Configuration Tool the firmware setup was made with – after updating the VPC Software Suite, update the firmware too.
+- **A device is shown as not plugged in** (yellow, e.g. *4/5*): check the cable, or whether its PID has changed in the
+  VPC Configuration Tool (then press *Find new devices*).
 - **The control panel looks out of date:** press F5. The page also reloads itself when the bridge restarts.
 - **Antivirus warning about the exe:** exes built with PyInstaller are sometimes flagged by mistake. Add an exception
   for the folder, or run from Python instead.

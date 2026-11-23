@@ -136,6 +136,8 @@ class LedWriter:
         self._phys: dict[tuple[str, str], dict] = {}    # wanted state per physical LED, for the control panel
         self._override: set[tuple[str, str]] = set()   # physical LEDs blinking so they can be identified
         self._blink_phase = True
+        # Results of the calls to VPC_LED_Control, for the status in the control panel
+        self.write_stats = {"ok": 0, "failed": 0, "last_ok": None, "last_fail": None, "last_error": ""}
         self.configure(cfg)
         threading.Thread(target=self._blink_loop, daemon=True, name="blink").start()
 
@@ -301,14 +303,51 @@ class LedWriter:
         if self.dry_run:
             log.debug("DRY-RUN: %s", args)
             return
+        name = next((k for k, v in self.devices.items() if v is dev), str(dev.get("pid")))
         try:
             flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
             res = subprocess.run(args, shell=False if os.name == "nt" else True,
                                  capture_output=True, text=True, timeout=3, creationflags=flags)
             if res.returncode != 0:
+                detail = f"exit code {res.returncode} {res.stdout.strip()} {res.stderr.strip()}".strip()
                 log.warning("VPC_LED_Control failed (%s): %s %s", res.returncode, res.stdout.strip(), res.stderr.strip())
+                self._note_write(False, name, detail)
+            else:
+                self._note_write(True, name)
         except Exception as e:  # noqa: BLE001
             log.error("Could not run VPC_LED_Control: %s", e)
+            self._note_write(False, name, str(e))
+
+    def _note_write(self, ok: bool, device: str, error: str = "") -> None:
+        with self._lock:
+            s = self.write_stats
+            now = time.time()
+            if ok:
+                s["ok"] += 1
+                s["last_ok"] = now
+            else:
+                s["failed"] += 1
+                s["last_fail"] = now
+                s["last_error"] = f"{device}: {error}"
+
+    def health(self) -> dict:
+        """How LED control is doing, for the control panel: is VPC_LED_Control.exe there, and did the last write
+        work? state: dry_run, missing (no exe), error (the last write failed), ok, or ready (no writes yet)."""
+        with self._lock:
+            s = dict(self.write_stats)
+            exe = self.exe
+        found = Path(exe).exists()
+        if self.dry_run:
+            state = "dry_run"
+        elif not found:
+            state = "missing"
+        elif s["last_fail"] and (not s["last_ok"] or s["last_fail"] > s["last_ok"]):
+            state = "error"
+        elif s["last_ok"]:
+            state = "ok"
+        else:
+            state = "ready"
+        return {"state": state, "exe": exe, "exe_found": found, **s}
 
     def _blink_loop(self) -> None:
         while True:
@@ -565,8 +604,17 @@ class SimRules(threading.Thread):
 
     def _loop(self, aq) -> None:
         last_title = None
+        no_title_since = None
         while True:
             title = self._title(aq)
+            # SimConnect now and then gives no title for a single reading. Keep the aircraft (and its profile)
+            # until the title has been missing for 5 s, so the profile does not flip back and forth.
+            if title is None and last_title is not None:
+                no_title_since = no_title_since or time.monotonic()
+                if time.monotonic() - no_title_since < 5.0:
+                    title = last_title
+            else:
+                no_title_since = None
             if title != last_title:
                 log.info("Aircraft: %s", title or "(unknown)")
                 last_title = title
@@ -796,7 +844,7 @@ def pick_profile(cfg: dict, title: str | None, select: str | None = None) -> tup
         if chosen:
             return chosen, "chosen by hand"
     if not title:
-        return None, "automatic – no aircraft yet (MSFS not connected)"
+        return None, "automatic – no aircraft (MSFS not connected, or no aircraft loaded)"
     t = title.lower()
     for p in profs:
         for m in p.get("match", []):
@@ -2043,6 +2091,26 @@ class Bridge:
         self._per_device(items, lambda d, l, c: self.leds.set(d, l, color=c, source="shutdown"), "shutdown")
         log.info("LEDs set. Done.")
 
+    def led_status(self) -> dict:
+        """VPC_LED_Control health plus which devices in config.json are plugged in (checked at most every 3 s)."""
+        st = self.leds.health()
+        now = time.monotonic()
+        if now - getattr(self, "_usb_checked", 0.0) > 3.0:
+            try:
+                self._usb_present = set(connected_usb_devices())
+            except Exception:  # noqa: BLE001 – not on Windows, or the device list could not be read
+                self._usb_present = None
+            self._usb_checked = now
+        present = getattr(self, "_usb_present", None)
+        devs = self.cfg["devices"]
+        if present is None:
+            st["devices"] = {"known": False, "total": len(devs), "connected": None, "missing": []}
+        else:
+            missing = [v.get("name", k) for k, v in devs.items() if str(v["pid"]).upper() not in present]
+            st["devices"] = {"known": True, "total": len(devs), "connected": len(devs) - len(missing),
+                             "missing": missing}
+        return st
+
     def status(self) -> dict:
         cfg = self.cfg
         phys = self.leds.phys_state()
@@ -2081,6 +2149,7 @@ class Bridge:
                 "aircraft": rules.aircraft if rules else None,
                 "connected_since": rules.connected_since if rules else None,
             },
+            "led_control": self.led_status(),
             "n_rules": len(self.active_rules()),
             "profile": self.profile_status(),
             "autostart": autostart_status(),

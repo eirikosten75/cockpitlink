@@ -336,6 +336,7 @@
   <h1>Virpil LED Bridge <span class="ver" id="ver"></span></h1>
   <div class="pills">
     <span class="pill" id="pSim"><span class="dot"></span><span>MSFS: …</span></span>
+    <span class="pill" id="pLed" role="status"><span class="dot"></span><span>LEDs: …</span></span>
     <span class="pill" id="pRules">Rules: …</span>
     <span class="pill" id="pUptime">Uptime: …</span>
     <span class="pill" id="pCfg">Config: …</span>
@@ -1108,6 +1109,31 @@ function fmtDuration(s) {
   return h ? `${h} h ${m} min` : m ? `${m} min ${sec} s` : `${sec} s`;
 }
 
+// LED control: is VPC_LED_Control.exe there, did the last write work, and are the panels plugged in?
+function renderLedPill(lc) {
+  if (!lc) return;
+  const d = lc.devices || {};
+  const devs = d.known ? ` · ${d.connected}/${d.total}` : "";
+  const ago = (t) => { if (!t) return "never"; const s = Math.round(Date.now() / 1000 - t); return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`; };
+  let cls = "ok", text = "LEDs OK" + devs;
+  if (lc.state === "dry_run") { cls = ""; text = "LEDs: dry run"; }
+  else if (lc.state === "missing") { cls = "err"; text = "VPC_LED_Control not found"; }
+  else if (lc.state === "error") { cls = "err"; text = "LED writes failing" + devs; }
+  else if (lc.state === "ready") { cls = "warn"; text = "LEDs ready" + devs; }
+  if (cls === "ok" && d.known && d.connected < d.total) cls = "warn";
+  const tip = [
+    lc.state === "missing" ? `Could not find ${lc.exe} – fix "vpc_led_control" → "exe" in config.json and press Reload config.` : `VPC_LED_Control: ${lc.exe}`,
+    `Writes: ${lc.ok} OK, ${lc.failed} failed · last OK ${ago(lc.last_ok)}` + (lc.failed ? ` · last failure ${ago(lc.last_fail)}` : ""),
+    lc.last_error ? `Last error: ${lc.last_error}` : "",
+    d.known ? (d.missing.length ? `Not plugged in: ${d.missing.join(", ")}` : "All devices in config.json are plugged in.") : "",
+  ].filter(Boolean).join("\n");
+  const el = $("pLed");
+  el.className = "pill " + cls;
+  el.lastChild.textContent = text;
+  el.title = tip;
+  el.setAttribute("aria-label", text + ". " + tip.replace(/\n/g, ". "));
+}
+
 function renderHeader(st) {
   if (st.version) { $("ver").textContent = "v" + st.version; document.title = "Virpil LED Bridge v" + st.version; }
   const sim = $("pSim");
@@ -1121,6 +1147,7 @@ function renderHeader(st) {
     sim.appendChild(b);
   }
   $("pRules").textContent = `Rules: ${st.n_rules}` + (st.dry_run ? " · dry run" : "");
+  renderLedPill(st.led_control);
   $("pUptime").textContent = "Uptime: " + fmtDuration(st.uptime_s);
   const t = new Date(st.config_loaded_at * 1000);
   $("pCfg").textContent = "Config loaded " + t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });

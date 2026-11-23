@@ -6,6 +6,18 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **LED control status** in the top bar, next to *MSFS connected*: green when `VPC_LED_Control.exe` is found, the last
+  write to a panel worked and all devices are plugged in (e.g. *LEDs OK · 5/5*); yellow when a device is missing; red
+  when the exe is not found or writes fail. The tooltip shows the path, writes and failures, the last error and the
+  devices that are not plugged in.
+
+### Fixed
+- When MSFS briefly gave no aircraft name, the log showed the aircraft as unknown and back again every few seconds,
+  and an aircraft profile could switch back and forth. A missing name now only counts after 5 seconds.
+
 ## [1.8] – 2026-11-23
 
 ### Added
