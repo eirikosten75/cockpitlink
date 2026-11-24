@@ -127,7 +127,10 @@ The control panel has five tabs. The page remembers the last one, and you can li
   devices are not plugged in. *Reload config* applies changes made to
   `config.json` by hand without a restart. If the file is invalid, the old config is kept and you are told what is
   wrong. *Quit bridge* sets the LEDs to their base colours and exits.
-- **Panels:** your devices with their LEDs live, *Setup* for naming LEDs, and *Find new devices*.
+- **Panels:** laid out like SPAD.neXt – the names of your devices on the left, the chosen device with its LEDs live in
+  the middle, and on the right the rules for the LED you click, with *+ New rule for this LED* (the rule editor opens
+  with that device and LED filled in), *Identify* and the LED's colour right now. *Setup* names the LEDs; *Find new
+  devices* adds devices.
 - **Rules:** each rule with its current value from MSFS and which state applies right now. Turn rules on/off, move them
   up/down, or press *Edit* / *New rule*. Rules are evaluated top to bottom; if several rules drive the same LED, the last one wins.
   With aircraft profiles on, the rules for all aircraft and each profile have their own tab here.

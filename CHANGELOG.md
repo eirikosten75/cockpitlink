@@ -6,6 +6,14 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **The Panels tab works like SPAD.neXt.** The names of your devices are listed on the left, the chosen device is shown
+  large in the middle, and clicking one of its LEDs shows the rules for that LED on the right – turn them on/off, edit
+  them, change their order, or press *+ New rule for this LED* to open the rule editor with the device and LED already
+  filled in. *Identify* makes the LED blink on the panel. The Rules tab still lists all rules.
+
 ## [2.1] – 2026-11-24
 
 ### Added

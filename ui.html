@@ -125,6 +125,7 @@
   .card h2 { font-size: 14px; margin: 0; padding: 10px 14px; display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); }
   .card h2 small { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: 12px; }
   .card.wide { grid-column: 1 / -1; }
+  #devices .card h2 { flex-wrap: wrap; }
 
   /* Panel face */
   .face { position: relative; background: var(--panel); margin: 12px; border-radius: 14px; border: 2px solid var(--panel-edge); }
@@ -196,6 +197,38 @@
   .setup .row.dirty input { border-color: var(--warn); }
   .walkbar { display: none; position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 0 0; }
   .walking .walkbar { display: flex; }
+  #devices .face .led:not(.slot) { cursor: pointer; }
+  #devices .face .led.chosen { outline: 3px solid var(--accent); outline-offset: 3px; z-index: 4; }
+  /* Panels tab, as in SPAD.neXt: list of panels | the chosen panel | rules for the chosen LED */
+  .panels-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
+  .panels-layout .devices { display: block; }
+  .panels-layout .devices > .card[hidden] { display: none; }
+  #devices .face.drawn { max-width: none; width: max(280px, min(calc(100% - 24px), calc((100vh - 300px) * var(--ar, .88)))); }
+  .dev-list, .lp { position: sticky; top: calc(var(--head-h, 57px) + 56px); max-height: calc(100vh - var(--head-h, 57px) - 76px); overflow: auto; }
+  .dev-list { display: grid; align-content: start; padding: 6px; gap: 2px; }
+  .dev-list h2 { margin: -6px -6px 4px; }
+  .dev-list button { text-align: left; border: 0; border-radius: 8px; background: none; padding: 8px 10px; font-weight: 500;
+                     border-left: 3px solid transparent; }
+  .dev-list button:hover { background: var(--surface-2); }
+  .dev-list button[aria-current="true"] { background: var(--surface-2); border-left-color: var(--accent); font-weight: 700; }
+  @media (max-width: 1180px) {
+    .panels-layout { grid-template-columns: 180px minmax(0, 1fr); }
+    .lp { grid-column: 1 / -1; position: static; max-height: none; }
+  }
+  @media (max-width: 700px) {
+    .panels-layout { grid-template-columns: minmax(0, 1fr); }
+    .dev-list { position: static; max-height: none; display: flex; flex-wrap: wrap; }
+    .dev-list h2 { flex-basis: calc(100% + 12px); }
+  }
+  .lp-head { display: flex; gap: 10px; align-items: center; padding: 10px 14px; font-size: 13px; }
+  .lp-head .led-now { display: inline-block; width: 22px; height: 22px; border-radius: 5px; flex: none; border: 1px solid #0005; }
+  .lp-where { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .lp-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 0 14px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .lp-bar select { font: inherit; padding: 3px 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); color: var(--text); max-width: 200px; }
+  .lp .rule { grid-template-columns: 22px minmax(0, 1fr) auto; padding: 8px 12px; }
+  .lp .rule .tgtc { display: none; }
+  .lp .rule .val { grid-column: 2; }
+  .lp .rule .acts { grid-column: 3; grid-row: 1; }
   .face .led.pick { cursor: pointer; }
   .face .led.pick:hover { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -373,10 +406,14 @@
 <main>
   <section id="pane-panels" role="tabpanel" aria-labelledby="tab-panels">
     <div class="pane-bar">
-      <p class="hint grow">The LEDs on your panels, live. Click <b>Setup</b> on a panel to name its LEDs, or <b>Edit drawing</b> to change its drawing.</p>
+      <p class="hint grow">Choose a panel on the left, then click an LED to see its rules and make new ones. <b>Setup</b> names the LEDs, <b>Edit drawing</b> changes the drawing.</p>
       <button id="btnFind" title="Look for Virpil devices that are plugged in but not in config.json yet">Find new devices</button>
     </div>
-    <div class="devices" id="devices"></div>
+    <div class="panels-layout">
+      <nav class="card dev-list" id="devList" aria-label="Panels"></nav>
+      <div class="devices" id="devices"></div>
+      <aside class="card lp" id="ledPanel" aria-label="Rules for the chosen LED"></aside>
+    </div>
   </section>
 
   <section id="pane-rules" role="tabpanel" aria-labelledby="tab-rules" hidden>
@@ -651,6 +688,7 @@ function renderDevices(st) {
     ledEls.clear();
     swEls.clear();
     for (const dev of st.devices) root.appendChild(buildDevice(dev));
+    renderDevList(st);
     if (!st.devices.length) {
       root.innerHTML = `<div class="card"><div class="empty">No Virpil devices in config.json yet. Plug them in and press
         <button class="small primary" type="button" id="btnFindEmpty">Find new devices</button></div></div>`;
@@ -675,7 +713,8 @@ function renderDevices(st) {
       if (el.getAttribute("aria-label") !== desc) el.setAttribute("aria-label", desc);
     }
   }
-  if (rebuilt) applyPendingFocus();
+  if (rebuilt) { markChosen(); applyPendingFocus(); renderLedPanel(); }
+  updateLedPanelLive();
 }
 
 async function refreshNow() {
@@ -692,6 +731,7 @@ function buildDevice(dev) {
   const card = document.createElement("div");
   const layout = LAYOUTS[layoutKey(dev)];
   card.className = "card" + (layout?.wide ? " wide" : "");
+  card.dataset.dev = dev.id;
   const h = document.createElement("h2");
   h.innerHTML = `<span></span><span class="right"><small></small><button class="small" type="button" data-draw></button>
     <a class="btn-link small" data-export download>Export</a>
@@ -719,6 +759,9 @@ function buildDevice(dev) {
     face.setAttribute("role", "group");
     face.setAttribute("aria-label", `LEDs on ${dev.name}`);
     if (layout.aspect) face.style.aspectRatio = layout.aspect;
+    // Width / height, so the drawing can be as large as the window allows (see #devices .face.drawn).
+    const [aw, ah] = String(layout.aspect || "1310 / 1490").split("/").map(Number);
+    if (aw > 0 && ah > 0) face.style.setProperty("--ar", aw / ah);
     const key = layoutKey(dev);
     if (layout.photo && PHOTOS.has(key)) {
       const img = document.createElement("img");
@@ -805,26 +848,30 @@ function buildDevice(dev) {
     setupBtn.textContent = v ? "Close setup" : "Setup";
     card.querySelectorAll(".face .led").forEach((el) => {
       el.classList.toggle("pick", v);
-      el.setAttribute("role", v ? "button" : "img");
+      el.setAttribute("role", "button");
     });
     if (!v) stopWalk(dev.id);
   };
   setupBtn.addEventListener("click", () => open(!setupOpen.has(dev.id)));
   open(setupOpen.has(dev.id));
 
-  // In setup mode: click an LED to make it blink on the panel and jump to its row.
+  // Click an LED: it is chosen in the LED panel to the right. In setup mode it also blinks on the
+  // panel and its row in the list gets the focus.
+  const pickLed = (el) => {
+    selectLed(dev.id, el._led.cmd);
+    if (setupOpen.has(dev.id)) focusRow(dev.id, el._led.cmd, true);
+  };
   card.addEventListener("click", (e) => {
     const el = e.target.closest(".face .led");
-    if (!el || !el._led || !setupOpen.has(dev.id)) return;
-    focusRow(dev.id, el._led.cmd, true);
+    if (el && el._led) pickLed(el);
   });
   // The same with the keyboard: Enter or Space on a focused LED.
   card.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
     const el = e.target.closest(".face .led");
-    if (!el || !el._led || !setupOpen.has(dev.id)) return;
+    if (!el || !el._led) return;
     e.preventDefault();
-    focusRow(dev.id, el._led.cmd, true);
+    pickLed(el);
   });
   return card;
 }
@@ -1085,7 +1132,7 @@ function makeLedEl(cls, dev, led) {
   const el = document.createElement("div");
   el.className = cls;
   el.tabIndex = 0;
-  el.setAttribute("role", "img");
+  el.setAttribute("role", "button");
   el._led = led;
   el._dev = dev;
   el.setAttribute("aria-label", ledDescription(dev, led));
@@ -2407,63 +2454,207 @@ function renderRules() {
   renderProfileBar();
   const rules = scopeRules();
   $("rulesInfo").textContent = `${rules.length} rules · evaluated top to bottom`;
+  renderLedPanel();
   // LEDs that the profile in use takes over (shown on the rules for all aircraft)
-  const activeName = lastStatus?.profile?.active;
-  const activeProf = profilesShown() && activeName ? cfgUI.profiles.find((p) => p.name === activeName) : null;
-  const takenBy = new Set(!ruleScope && activeProf
-    ? (activeProf.mode === "replace" ? ["*"] : activeProf.rules.filter((r) => r.enabled !== false).map((r) => physKey(r.device, r.led)))
-    : []);
+  const { activeName, takenBy } = takenByProfile();
   if (!rules.length) {
     box.innerHTML = ruleScope
       ? `<div class="empty">No rules in this profile yet. Press “New rule”, or “Copy rules from all aircraft” and change them.</div>`
       : `<div class="empty">No rules yet. Press “New rule”.</div>`;
     return;
   }
-  box.replaceChildren(...rules.map((rule, i) => {
-    const row = document.createElement("div");
-    row.className = "rule" + (rule.enabled === false ? " off" : "");
-    row.dataset.i = i;
-    const { text } = ledLabel(rule.device, rule.led);
-    row.innerHTML = `
-      <input type="checkbox" title="Turn the rule on or off" aria-label="Rule ${esc(rule.name || "(no name)")} in use" data-act="toggle" ${rule.enabled === false ? "" : "checked"}>
-      <div><div class="nm"></div><div class="sub"></div></div>
-      <div><div class="tgt"><span class="led-now" aria-hidden="true"></span><span></span></div></div>
-      <div class="val" title="Current value from MSFS"></div>
-      <div class="acts">
-        <button class="small" type="button" data-act="edit" aria-label="Edit rule ${esc(rule.name || "(no name)")}">Edit</button>
-        <button class="small" type="button" data-act="up" title="Move up" aria-label="Move rule ${esc(rule.name || "")} up" ${i === 0 ? "disabled" : ""}>↑</button>
-        <button class="small" type="button" data-act="down" title="Move down" aria-label="Move rule ${esc(rule.name || "")} down" ${i === rules.length - 1 ? "disabled" : ""}>↓</button>
-      </div>
-      <div class="chips"></div>`;
-    row.querySelector(".nm").textContent = rule.name || "(no name)";
-    let sub = rule.simvar;
-    if (rule.only_if) sub += `  ·  only when ${rule.only_if.simvar} ${condText(rule.only_if.if)}`;
-    if (rule.aircraft_contains) sub += `  ·  only aircraft with “${rule.aircraft_contains}”`;
-    row.querySelector(".sub").textContent = sub;
-    if (takenBy.has("*") || takenBy.has(physKey(rule.device, rule.led))) {
-      const o = document.createElement("div");
-      o.className = "over";
-      o.textContent = `Not used now – the profile “${activeName}” drives this LED`;
-      row.querySelector(".sub").after(o);
-    }
-    row.querySelector(".tgt span:last-child").textContent = text;
-    const chips = row.querySelector(".chips");
-    rule.states.forEach((st, k) => {
-      const c = stateColor(st, rule.device, rule.led);
-      const chip = document.createElement("span");
-      chip.className = "chip";
-      chip.dataset.k = k;
-      chip.append(swatch(c), document.createTextNode(`${condText(st.if)} → ${c.label}${st.blink ? ", blinking" : ""}`));
-      chips.appendChild(chip);
-    });
-    return row;
-  }));
+  box.replaceChildren(...rules.map((rule, i) =>
+    ruleRow(rule, i, i > 0 ? i - 1 : null, i < rules.length - 1 ? i + 1 : null, takenBy, activeName)));
   updateRulesLive();
 }
 
+// LEDs that the profile in use takes over from the rules for all aircraft ("*" = all of them).
+function takenByProfile() {
+  const activeName = lastStatus?.profile?.active;
+  const activeProf = profilesShown() && activeName ? cfgUI.profiles.find((p) => p.name === activeName) : null;
+  return { activeName, takenBy: new Set(!ruleScope && activeProf
+    ? (activeProf.mode === "replace" ? ["*"] : activeProf.rules.filter((r) => r.enabled !== false).map((r) => physKey(r.device, r.led)))
+    : []) };
+}
+
+// One rule in a list. upJ/downJ: the index of the rule it swaps places with (null = no button).
+function ruleRow(rule, i, upJ, downJ, takenBy, activeName) {
+  const row = document.createElement("div");
+  row.className = "rule" + (rule.enabled === false ? " off" : "");
+  row.dataset.i = i;
+  const { text } = ledLabel(rule.device, rule.led);
+  row.innerHTML = `
+    <input type="checkbox" title="Turn the rule on or off" aria-label="Rule ${esc(rule.name || "(no name)")} in use" data-act="toggle" ${rule.enabled === false ? "" : "checked"}>
+    <div class="nmc"><div class="nm"></div><div class="sub"></div></div>
+    <div class="tgtc"><div class="tgt"><span class="led-now" aria-hidden="true"></span><span></span></div></div>
+    <div class="val" title="Current value from MSFS"></div>
+    <div class="acts">
+      <button class="small" type="button" data-act="edit" aria-label="Edit rule ${esc(rule.name || "(no name)")}">Edit</button>
+      <button class="small" type="button" data-act="move" data-j="${upJ ?? ""}" title="Move up" aria-label="Move rule ${esc(rule.name || "")} up" ${upJ == null ? "disabled" : ""}>↑</button>
+      <button class="small" type="button" data-act="move" data-j="${downJ ?? ""}" title="Move down" aria-label="Move rule ${esc(rule.name || "")} down" ${downJ == null ? "disabled" : ""}>↓</button>
+    </div>
+    <div class="chips"></div>`;
+  row.querySelector(".nm").textContent = rule.name || "(no name)";
+  let sub = rule.simvar;
+  if (rule.only_if) sub += `  ·  only when ${rule.only_if.simvar} ${condText(rule.only_if.if)}`;
+  if (rule.aircraft_contains) sub += `  ·  only aircraft with “${rule.aircraft_contains}”`;
+  row.querySelector(".sub").textContent = sub;
+  if (takenBy.has("*") || takenBy.has(physKey(rule.device, rule.led))) {
+    const o = document.createElement("div");
+    o.className = "over";
+    o.textContent = `Not used now – the profile “${activeName}” drives this LED`;
+    row.querySelector(".sub").after(o);
+  }
+  row.querySelector(".tgt span:last-child").textContent = text;
+  const chips = row.querySelector(".chips");
+  rule.states.forEach((st, k) => {
+    const c = stateColor(st, rule.device, rule.led);
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.dataset.k = k;
+    chip.append(swatch(c), document.createTextNode(`${condText(st.if)} → ${c.label}${st.blink ? ", blinking" : ""}`));
+    chips.appendChild(chip);
+  });
+  return row;
+}
+
+// ---- The LED panel in the Panels tab: click an LED, see and make its rules ----
+let selLed = null; // {dev, cmd}
+try { selLed = JSON.parse(localStorage.getItem("vlb.selLed") || "null"); } catch { selLed = null; }
+
+let selDev = null; // the panel shown in the middle
+try { selDev = localStorage.getItem("vlb.selDev"); } catch { selDev = null; }
+
+function selectLed(devId, cmd) {
+  selLed = { dev: devId, cmd };
+  try { localStorage.setItem("vlb.selLed", JSON.stringify(selLed)); } catch { /* not kept */ }
+  markChosen();
+  renderLedPanel();
+}
+
+// The list of panels on the left: only their names. The chosen one is shown in the middle.
+function renderDevList(st) {
+  const nav = $("devList");
+  nav.innerHTML = `<h2><span>Panels</span></h2>`;
+  for (const dev of st.devices) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.dev = dev.id;
+    b.textContent = dev.name;
+    b.title = `${dev.id} · PID ${dev.pid} · ${dev.leds.length} LEDs`;
+    b.addEventListener("click", () => selectDevice(dev.id));
+    nav.appendChild(b);
+  }
+  nav.hidden = !st.devices.length;
+  showChosenDevice();
+}
+
+function selectDevice(devId) {
+  selDev = devId;
+  try { localStorage.setItem("vlb.selDev", devId); } catch { /* not kept */ }
+  showChosenDevice();
+  renderLedPanel();
+}
+
+function showChosenDevice() {
+  const devs = lastStatus?.devices || [];
+  if (!devs.some((d) => d.id === selDev)) selDev = devs.some((d) => d.id === selLed?.dev) ? selLed.dev : devs[0]?.id ?? null;
+  document.querySelectorAll("#devices > .card[data-dev]").forEach((c) => { c.hidden = c.dataset.dev !== selDev; });
+  document.querySelectorAll("#devList button[data-dev]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.dev === selDev)));
+}
+
+function markChosen() {
+  for (const [k, el] of ledEls) el.classList.toggle("chosen", !!selLed && k === selLed.dev + "/" + selLed.cmd);
+}
+
+function renderLedPanel() {
+  const box = $("ledPanel");
+  if (!box || !cfgUI || !lastStatus) return;
+  const dev = selLed && selLed.dev === selDev ? devById(selLed.dev) : null;
+  const led = dev?.leds.find((l) => l.cmd === selLed.cmd);
+  if (!led) {
+    box.innerHTML = `<h2><span>LED rules</span></h2><div class="empty">Click an LED on the panel to see its rules and make new ones.</div>`;
+    return;
+  }
+  const name = primaryName(led.names);
+  box.innerHTML = `<h2><span class="lp-name"></span><span class="right">
+      <button class="small" type="button" data-lp="identify" title="Make this LED blink white on the panel">Identify</button></span></h2>
+    <div class="lp-head"><span class="led-now" aria-hidden="true"></span><div><div class="lp-where"></div><div class="lp-now"></div></div></div>
+    <div class="lp-bar"></div>
+    <div class="rules" id="lpRules"></div>`;
+  box.querySelector(".lp-name").textContent = name;
+  const others = led.names.filter((n) => n !== name);
+  box.querySelector(".lp-where").textContent = `${dev.name} · LED ${led.cmd}${others.length ? " · also " + others.join(", ") : ""}`;
+  const bar = box.querySelector(".lp-bar");
+  if (profilesShown()) {
+    const lbl = document.createElement("label");
+    lbl.textContent = "Rules for ";
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", "Show the rules for all aircraft or for a profile");
+    sel.appendChild(new Option("All aircraft", ""));
+    for (const pr of cfgUI.profiles) sel.appendChild(new Option(pr.name + (pr.enabled === false ? " (off)" : ""), pr.name));
+    sel.value = ruleScope || "";
+    sel.addEventListener("change", () => { ruleScope = sel.value || null; renderRules(); });
+    lbl.appendChild(sel);
+    bar.appendChild(lbl);
+  }
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "small primary";
+  add.dataset.lp = "new";
+  add.textContent = "+ New rule for this LED";
+  bar.appendChild(add);
+
+  const key = dev.id + "/" + led.cmd;
+  const rules = scopeRules();
+  const mine = rules.map((r, i) => [r, i]).filter(([r]) => physKey(r.device, r.led) === key);
+  const list = box.querySelector("#lpRules");
+  if (!mine.length) {
+    list.innerHTML = `<div class="empty">No rules for this LED${ruleScope ? ` in the profile “${esc(ruleScope)}”` : ""} yet.</div>`;
+  } else {
+    const { activeName, takenBy } = takenByProfile();
+    list.replaceChildren(...mine.map(([r, i], n) =>
+      ruleRow(r, i, n > 0 ? mine[n - 1][1] : null, n < mine.length - 1 ? mine[n + 1][1] : null, takenBy, activeName)));
+    if (mine.length > 1) {
+      const p = document.createElement("p");
+      p.className = "prof-note";
+      p.textContent = "If more than one of these rules sets a colour, the lowest one wins.";
+      list.appendChild(p);
+    }
+  }
+  list.addEventListener("click", onRuleListClick);
+  updateLedPanelLive();
+  updateRulesLive();
+}
+
+function updateLedPanelLive() {
+  const box = $("ledPanel");
+  const head = box?.querySelector(".lp-head");
+  if (!head || !selLed) return;
+  const led = devById(selLed.dev)?.leds.find((l) => l.cmd === selLed.cmd);
+  if (!led) return;
+  const look = ledLook(led.rgb);
+  head.querySelector(".led-now").style.background = look ? look.bg : "transparent";
+  let now = "Now: ";
+  if (!led.rgb) now += "not set by the bridge yet";
+  else now += look?.off ? "off" : `${led.color || "#" + led.rgb}, ${levelName(led.rgb)}${led.blink ? ", blinking" : ""}`;
+  if (led.source) now += ` – set by ${led.source}`;
+  const el = head.querySelector(".lp-now");
+  if (el.textContent !== now) el.textContent = now;
+}
+
+$("ledPanel").addEventListener("click", (e) => {
+  const a = e.target.closest("button[data-lp]")?.dataset.lp;
+  if (!a || !selLed) return;
+  const led = devById(selLed.dev)?.leds.find((l) => l.cmd === selLed.cmd);
+  if (!led) return;
+  if (a === "identify") identify(selLed.dev, selLed.cmd);
+  if (a === "new") openRuleEditor(null, { device: selLed.dev, led: primaryName(led.names) });
+});
+
 function updateRulesLive() {
   if (!cfgUI) return;
-  document.querySelectorAll("#rules .rule").forEach((row) => {
+  document.querySelectorAll("#rules .rule, #lpRules .rule").forEach((row) => {
     const rule = scopeRules()[+row.dataset.i];
     if (!rule) return;
     const v = live.values[rule.simvar];
@@ -2488,7 +2679,7 @@ function updateRulesLive() {
   });
 }
 
-$("rules").addEventListener("click", async (e) => {
+async function onRuleListClick(e) {
   const el = e.target.closest("[data-act]");
   if (!el) return;
   const i = +el.closest(".rule").dataset.i;
@@ -2496,12 +2687,18 @@ $("rules").addEventListener("click", async (e) => {
   switch (el.dataset.act) {
     case "edit": return openRuleEditor(i);
     case "toggle": rules[i].enabled = el.checked; if (el.checked) delete rules[i].enabled; break;
-    case "up": [rules[i - 1], rules[i]] = [rules[i], rules[i - 1]]; break;
-    case "down": [rules[i + 1], rules[i]] = [rules[i], rules[i + 1]]; break;
+    case "move": {
+      const j = el.dataset.j === "" ? NaN : +el.dataset.j;
+      if (!(j >= 0 && j < rules.length)) return;
+      // Move the rule to just before (up) or after (down) rule j; the order of the others stays.
+      rules.splice(j, 0, ...rules.splice(i, 1));
+      break;
+    }
     default: return;
   }
   await saveRules(rules);
-});
+}
+$("rules").addEventListener("click", onRuleListClick);
 
 async function saveRules(rules) {
   const res = await post("/api/rules", { rules, mtime: cfgUI.mtime, profile: ruleScope || undefined });
@@ -2716,11 +2913,11 @@ function fillLeds(devId, current) {
   sel.value = current || primaryName(dev?.leds[0]?.names ?? [""]);
 }
 
-async function openRuleEditor(index) {
+async function openRuleEditor(index, target) {
   const isNew = index == null;
   const firstDev = lastStatus.devices[0];
   const rule = isNew
-    ? { name: "", simvar: "", device: firstDev.id, led: primaryName(firstDev.leds[0].names),
+    ? { name: "", simvar: "", device: target?.device ?? firstDev.id, led: target?.led ?? primaryName(firstDev.leds[0].names),
         states: [{ if: "== 1", color: "green" }, { color: "startup" }] }
     : structuredClone(scopeRules()[index]);
   edit = { index, rule };
