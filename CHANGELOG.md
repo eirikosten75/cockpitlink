@@ -6,6 +6,13 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] – 2026-11-24
+
+### Fixed
+- Old VPC profiles were taken for the new form. The *Update firmware* warning did not show for devices still on old
+  firmware, and *Find new devices* did not read the LEDs from old profiles. Now only the zero-padded fields
+  (`cnt_led_rgb_01`–`09`) mark the new form.
+
 ## [2.0] – 2026-11-23
 
 ### Changed – needs VPC Software Suite VPC-JOY-20261027 and updated firmware

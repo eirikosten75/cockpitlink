@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "2.0"
+VERSION = "2.0.1"
 
 log = logging.getLogger("virpil")
 
@@ -1423,8 +1423,9 @@ def vpc_profile_leds() -> dict[str, dict]:
         if not re.fullmatch(r"[0-9A-F]{4}", pid) or (pid in newest and newest[pid][0] >= mtime):
             continue
         # The VPC software from October 2026 saves profiles in a new form (cnt_led_rgb_01 instead of cnt_led_rgb_1, no
-        # LED types). Its firmware numbers the board LEDs 01-20 instead of 05-24, see LED_NUMBERS.
-        new_form = any(re.fullmatch(r"cnt_led_rgb_\d\d", el.tag) for el in out.iter())
+        # LED types). Its firmware numbers the board LEDs 01-20 instead of 05-24, see LED_NUMBERS. Only the zero-padded
+        # 01-09 tell the forms apart: the classic form has cnt_led_rgb_10 to _20 too.
+        new_form = any(re.fullmatch(r"cnt_led_rgb_0\d", el.tag) for el in out.iter())
         types = {el.tag[12:]: el.get("Data", "") for el in out.iter() if el.tag.startswith("cnt_led_typ_")}
         cmds = set()
         if not new_form:
