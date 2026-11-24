@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "2.0.1"
+VERSION = "2.1"
 
 log = logging.getLogger("virpil")
 
@@ -1456,6 +1456,12 @@ GRIP_LED_CMDS = {f"grip_led{i}": f"{i:02d}" for i in range(1, 5)}
 LED_NUMBERS = "vpc-20261027"
 REQUIRED_VPC_VERSION = "20261027"
 
+# Setup files (Settings → Export / Import, and Export on a device card).
+CONFIG_FILE_KEY = "virpil_led_bridge_config"
+# Settings that an import of the whole setup may bring along (when ticked). Paths and ports of this PC are not.
+IMPORT_SETTINGS = ("sim_poll_ms", "blink_interval_ms", "on_disconnect_color", "on_exit", "profiles_enabled",
+                   "profile_select")
+
 
 def migrate_led_numbers(cfg: dict) -> bool:
     """Converts a config.json made for the old firmware (board LEDs 05-24) to the new numbers (01-20).
@@ -2024,6 +2030,273 @@ class Bridge:
 
         return self._edit_config(change)
 
+    # ---- export and import of the whole setup, or of one device ----
+    def export_config(self, device: str | None = None) -> dict:
+        """The setup as a file: everything (devices, LED names, rules, profiles, base colours, own colours, your
+        drawings and settings), or with device just that device and the rules and base colours that drive it.
+        Paths and ports of this PC (vpc_led_control, api) are left out."""
+        cfg = self.cfg
+        devs = cfg["devices"]
+        if device is not None and device not in devs:
+            raise ValueError(f"Unknown device '{device}'")
+        keys = [device] if device else list(devs)
+        rules = [r for r in cfg.get("rules", []) if r.get("device") in keys]
+        profiles = []
+        for p in cfg.get("profiles", []):
+            prules = [r for r in p.get("rules", []) if r.get("device") in keys]
+            if device and not prules:
+                continue
+            out = {k: v for k, v in p.items() if k != "rules"}
+            out["rules"] = prules
+            profiles.append(out)
+        startup = {k: v for k, v in cfg.get("startup", {}).items() if k in keys}
+        used = _colour_names(rules) | _colour_names(profiles) | _colour_names(startup)
+        colors = {c: v for c, v in cfg.get("colors", {}).items() if device is None or c in used}
+        own, _ = read_own_layouts(self.config_path)
+        own = {k: v for k, v in own.items() if not k.startswith("_") and isinstance(v, dict)}
+        if device:
+            want = {str(devs[device].get("layout") or devs[device]["pid"]).upper()}
+            for k in list(want):
+                src = next((v.get("same_as") for kk, v in own.items() if kk.upper() == k and v.get("same_as")), None)
+                if src:
+                    want.add(str(src).upper())
+            own = {k: v for k, v in own.items() if k.upper() in want}
+        data = {
+            CONFIG_FILE_KEY: 1,
+            "scope": "device" if device else "all",
+            "bridge_version": VERSION,
+            "exported": time.strftime("%Y-%m-%d %H:%M"),
+            "led_numbers": cfg.get("led_numbers", LED_NUMBERS),
+            "devices": {k: devs[k] for k in keys},
+            "rules": rules,
+            "profiles": profiles,
+            "startup": startup,
+            "colors": colors,
+            "layouts": own,
+        }
+        if not device:
+            data["settings"] = {k: cfg[k] for k in IMPORT_SETTINGS if k in cfg}
+        return data
+
+    def _read_import(self, data) -> dict:
+        """Checks an exported file and returns a clean copy, with the LED numbers converted if it was made for the
+        old firmware."""
+        if not isinstance(data, dict) or data.get(CONFIG_FILE_KEY) != 1:
+            if isinstance(data, dict) and data.get("virpil_led_bridge_profile") == 1:
+                raise ValueError("This is an aircraft profile file – import it in the Rules tab (Import …).")
+            raise ValueError("This is not a setup file exported by Virpil LED Bridge")
+        d = json.loads(json.dumps(data))
+        devices = d.get("devices")
+        if not isinstance(devices, dict) or not devices:
+            raise ValueError("The file has no devices")
+        for key, spec in devices.items():
+            if not isinstance(spec, dict) or not isinstance(spec.get("leds"), dict) or "pid" not in spec:
+                raise ValueError(f"Device '{key}' in the file is incomplete")
+            if not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", str(key)):
+                raise ValueError(f"Invalid device key '{key}' in the file")
+            if not re.fullmatch(r"[0-9A-Fa-f]{4}", str(spec["pid"])):
+                raise ValueError(f"Device '{key}' has an invalid PID '{spec['pid']}'")
+            for n, c in spec["leds"].items():
+                if not LED_NAME_RE.match(str(n)) or not re.fullmatch(r"\d{2}", str(c)) or not 1 <= int(c) <= 54:
+                    raise ValueError(f"Device '{key}' has an invalid LED '{n}': '{c}'")
+            if spec.get("layout") is not None and not LAYOUT_KEY_RE.match(str(spec["layout"]).upper()):
+                raise ValueError(f"Device '{key}' has an invalid drawing key")
+        for k in ("rules", "profiles"):
+            if not isinstance(d.get(k, []), list):
+                raise ValueError(f"'{k}' in the file must be a list")
+        for k in ("startup", "colors", "layouts", "settings"):
+            if not isinstance(d.get(k, {}), dict):
+                raise ValueError(f"'{k}' in the file must be an object")
+        d["converted"] = d.get("led_numbers") != LED_NUMBERS
+        if d["converted"]:  # made for the old firmware (board LEDs 05-24)
+            fake = {"devices": devices}
+            migrate_led_numbers(fake)
+        return d
+
+    @staticmethod
+    def _import_targets(cfg: dict, file_devices: dict) -> dict[str, str | None]:
+        """For each device in the file, the device in config.json it is: same key and PID, else same PID, else same
+        name. Each device in config.json is matched at most once."""
+        devs = cfg["devices"]
+        out: dict[str, str | None] = {k: None for k in file_devices}
+        taken: set[str] = set()
+        tests = [lambda k, s, dk, dv: dk == k and str(dv["pid"]).upper() == str(s["pid"]).upper(),
+                 lambda k, s, dk, dv: str(dv["pid"]).upper() == str(s["pid"]).upper(),
+                 lambda k, s, dk, dv: _norm_name(dv.get("name", dk)) == _norm_name(s.get("name", k))]
+        for test in tests:
+            for k, s in file_devices.items():
+                if out[k] is None:
+                    out[k] = next((dk for dk, dv in devs.items() if dk not in taken and test(k, s, dk, dv)), None)
+                    if out[k]:
+                        taken.add(out[k])
+        return out
+
+    def preview_import(self, data) -> dict:
+        """What importing the file would do, for the control panel to show before anything is changed."""
+        d = self._read_import(data)
+        cfg = self.cfg
+        rows = []
+        try:
+            present = set(connected_usb_devices())
+        except Exception:  # noqa: BLE001 – only used to tell the user which devices are plugged in
+            present = set()
+        targets = self._import_targets(cfg, d["devices"])
+        for key, spec in d["devices"].items():
+            target = targets[key]
+            n_prof = sum(1 for p in d.get("profiles", []) if isinstance(p, dict)
+                         for r in p.get("rules", []) if isinstance(r, dict) and r.get("device") == key)
+            lay_key = str(spec.get("layout") or spec["pid"]).upper()
+            rows.append({
+                "key": key, "name": spec.get("name", key), "pid": str(spec["pid"]).upper(),
+                "n_leds": len(set(spec["leds"].values())),
+                "n_rules": sum(1 for r in d.get("rules", []) if isinstance(r, dict) and r.get("device") == key),
+                "n_profile_rules": n_prof,
+                "drawing": any(k.upper() == lay_key for k in d.get("layouts", {})),
+                "base_colour": key in d.get("startup", {}),
+                "target": target,
+                "target_name": cfg["devices"][target].get("name", target) if target else None,
+                "plugged_in": str(spec["pid"]).upper() in present,
+            })
+        mine = {p.get("name", "").lower() for p in cfg.get("profiles", [])}
+        profs = [{"name": p.get("name", "?"), "exists": str(p.get("name", "")).lower() in mine,
+                  "n_rules": len(p.get("rules", []))} for p in d.get("profiles", []) if isinstance(p, dict)]
+        return {"scope": d.get("scope", "all"), "exported": d.get("exported"), "bridge_version": d.get("bridge_version"),
+                "converted": d["converted"], "devices": rows, "profiles": profs,
+                "colors": sorted(d.get("colors", {})), "settings": sorted(d.get("settings", {}))}
+
+    def import_config(self, data, choices: dict, settings: bool = False) -> str:
+        """Imports a setup file. choices says per device in the file: 'replace' (the matching device in config.json
+        gets the file's LED names, drawing, rules and base colour), 'add' (a new device) or 'skip'. config.json and
+        layouts.json are backed up first."""
+        d = self._read_import(data)
+        if not isinstance(choices, dict):
+            raise ValueError("'choices' must be an object")
+        drawings_to_write: dict[str, dict] = {}
+
+        def change(cfg: dict) -> str:
+            devs = cfg["devices"]
+            mapping: dict[str, str] = {}
+            done, skipped = [], []
+            targets = self._import_targets(cfg, d["devices"])
+            for key, spec in d["devices"].items():
+                act = choices.get(key, "skip")
+                target = targets[key]
+                if act == "replace" and not target:
+                    act = "add"
+                if act not in ("replace", "add"):
+                    skipped.append(spec.get("name", key))
+                    continue
+                new = {k: v for k, v in spec.items() if k in ("name", "vid", "pid", "leds", "layout")}
+                new["vid"] = str(new.get("vid", VIRPIL_VID))
+                src_lay = str(spec.get("layout") or spec["pid"]).upper()
+                if act == "replace":
+                    dst = target
+                    old_pid = str(devs[dst]["pid"]).upper()
+                    new.update({"vid": devs[dst]["vid"], "pid": devs[dst]["pid"]})  # the real device keeps its IDs
+                    if "layout" not in new and src_lay != old_pid:
+                        new["layout"] = src_lay  # keep the drawing from the file
+                    # Out with the old rules and base colour of this device.
+                    cfg["rules"] = [r for r in cfg.get("rules", []) if r.get("device") != dst]
+                    for p in cfg.get("profiles", []):
+                        p["rules"] = [r for r in p.get("rules", []) if r.get("device") != dst]
+                    cfg.get("startup", {}).pop(dst, None)
+                    done.append(f"{devs[dst].get('name', dst)} replaced")
+                else:
+                    dst = key if key not in devs else _device_key(spec.get("name", key), set(devs))
+                    done.append(f"{spec.get('name', key)} added" + (f" as “{dst}”" if dst != key else ""))
+                if new.get("layout") and str(new["layout"]).upper() == str(new["pid"]).upper():
+                    new.pop("layout")
+                devs[dst] = new
+                mapping[key] = dst
+                for k, v in d.get("layouts", {}).items():
+                    if k.upper() == src_lay and isinstance(v, dict):
+                        drawings_to_write[k.upper()] = v
+                        src = str(v.get("same_as", "")).upper()
+                        if src:
+                            for k2, v2 in d["layouts"].items():
+                                if k2.upper() == src and isinstance(v2, dict):
+                                    drawings_to_write[src] = v2
+            if not mapping:
+                raise ValueError("Nothing to import – every device was skipped")
+
+            def moved(rules) -> list:
+                return [{**r, "device": mapping[r["device"]]} for r in rules
+                        if isinstance(r, dict) and r.get("device") in mapping]
+
+            added_rules = moved(d.get("rules", []))
+            validate_rules_strict(added_rules)
+            cfg.setdefault("rules", []).extend(added_rules)
+            n_prof_rules, new_profiles = 0, []
+            for p in d.get("profiles", []):
+                if not isinstance(p, dict):
+                    continue
+                prules = moved(p.get("rules", []))
+                validate_rules_strict(prules)
+                name = str(p.get("name", "")).strip()[:60]
+                mine = next((q for q in cfg.get("profiles", []) if q.get("name", "").lower() == name.lower()), None)
+                if mine is not None:
+                    mine.setdefault("rules", []).extend(prules)
+                elif name and name.lower() not in RESERVED_PROFILE_NAMES and (prules or d.get("scope") == "all"):
+                    q = {"name": name, "match": [m for m in p.get("match", []) if isinstance(m, str)]}
+                    if p.get("mode", "extend") in PROFILE_MODES and p.get("mode", "extend") != "extend":
+                        q["mode"] = p["mode"]
+                    if p.get("enabled", True) is False:
+                        q["enabled"] = False
+                    q["rules"] = prules
+                    cfg.setdefault("profiles", []).append(q)
+                    new_profiles.append(name)
+                n_prof_rules += len(prules)
+            for key, dst in mapping.items():
+                if key in d.get("startup", {}):
+                    cfg.setdefault("startup", {})[dst] = d["startup"][key]
+            clash = []
+            for c, v in d.get("colors", {}).items():
+                mine_c = cfg.setdefault("colors", {})
+                if c in mine_c and mine_c[c] != v:
+                    clash.append(c)
+                else:
+                    mine_c[c] = v
+            if settings:
+                for k, v in d.get("settings", {}).items():
+                    if k in IMPORT_SETTINGS:
+                        cfg[k] = v
+            msg = "Imported: " + "; ".join(done)
+            msg += f". {len(added_rules)} rules" + (f", {n_prof_rules} profile rules" if n_prof_rules else "")
+            if new_profiles:
+                msg += f", new profiles: {', '.join(new_profiles)}"
+            if skipped:
+                msg += f". Skipped: {', '.join(skipped)}"
+            if clash:
+                msg += f". Kept your own colours with the same name: {', '.join(clash)}"
+            if d["converted"]:
+                msg += ". LED numbers converted from the old firmware (05–24 → 01–20)"
+            if settings and d.get("settings"):
+                msg += ". Settings imported"
+            return msg + "."
+
+        msg = self._edit_config(change)
+        if drawings_to_write:
+            try:
+                path = layouts_path(self.config_path)
+                ensure_layouts_file(self.config_path)
+                own, err = read_own_layouts(self.config_path)
+                if err:
+                    raise ValueError(err)
+                existing = {k.upper(): k for k in own}
+                for k, v in drawings_to_write.items():
+                    if v.get("same_as"):
+                        own[existing.get(k, k)] = {"same_as": str(v["same_as"]).upper(),
+                                                   **({"title": str(v["title"])[:80]} if v.get("title") else {})}
+                    else:
+                        own[existing.get(k, k)] = clean_layout(v)
+                _write_own_layouts(path, own)
+                msg += f" Drawings saved in layouts.json: {', '.join(sorted(drawings_to_write))}."
+            except (OSError, ValueError) as e:
+                msg += f" The drawings could not be saved: {e}"
+                log.error("Import: the drawings could not be saved: %s", e)
+        log.info("%s", msg)
+        return msg
+
     def config_for_ui(self) -> dict:
         """The rules and colours as the rule editor needs them."""
         cfg = self.cfg
@@ -2361,6 +2634,33 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                         self._reply(200, {"ok": True, "message": msg, "profile": bridge.profile_status()})
                     except OSError as e:
                         self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
+                elif path in ("/api/config/import", "/api/config/import/preview") and self.command == "POST":
+                    if not self._from_ui():
+                        return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
+                    if path.endswith("/preview"):
+                        self._reply(200, {"ok": True, "preview": bridge.preview_import(p["data"])})
+                    else:
+                        try:
+                            msg = bridge.import_config(p["data"], p.get("choices") or {}, bool(p.get("settings")))
+                            self._reply(200, {"ok": True, "message": msg})
+                        except OSError as e:
+                            self._reply(500, {"ok": False, "error": f"Could not write config.json: {e}"})
+                elif path == "/api/config/export":
+                    dev = p.get("device") or None
+                    data = bridge.export_config(dev)
+                    if dev:
+                        base = data["devices"][dev].get("name", dev)
+                    else:
+                        base = "VirpilLedBridge-setup-" + time.strftime("%Y%m%d")
+                    fname = re.sub(r"[^A-Za-z0-9._-]+", "-", base).strip("-") or "setup"
+                    body = dump_config(data).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Disposition", f'attachment; filename="{fname}.vlb-setup.json"')
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    self.wfile.write(body)
                 elif path == "/api/profiles/export":
                     data = bridge.export_profile(p["name"])
                     fname = re.sub(r"[^A-Za-z0-9._-]+", "-", data["profile"]["name"]).strip("-") or "profile"

@@ -9,7 +9,7 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 
 ## ⬇️ Download
 
-**[Download the latest version (VirpilLedBridge-v2.0.1.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v2.0.1/VirpilLedBridge-v2.0.1.zip)**
+**[Download the latest version (VirpilLedBridge-v2.1.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v2.1/VirpilLedBridge-v2.1.zip)**
 – or see all versions under [Releases](https://github.com/eirikosten75/virpil-led-bridge/releases).
 
 The zip contains `VirpilLedBridge.exe` (no Python needed), `config.example.json`, this README and the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds
@@ -140,7 +140,20 @@ The control panel has five tabs. The page remembers the last one, and you can li
   grid. Hover over an LED to see its names, colour and which rule set it.
 - **Drawings:** the drawing editor (section 5) – choose a panel at the top, or press *Edit drawing* on a panel.
 - **Log:** live, with a filter. The log is also written to `bridge.log` next to `config.json`.
-- **Settings:** aircraft profiles on/off, *Start with Windows*, *Find new devices*, and the version and config path.
+- **Settings:** aircraft profiles on/off, *Start with Windows*, *Find new devices*, *Back up and share* (below), and the
+  version and config path.
+
+**Back up and share your setup.** *Settings → Export setup …* saves everything in one `.vlb-setup.json` file: devices,
+LED names, rules, aircraft profiles, base colours, your own colours, your drawings from `layouts.json` and the general
+settings (not the paths and ports of this PC). *Export* on a panel's card in the Panels tab saves just that panel – its
+LED names, drawing, rules (also those in aircraft profiles) and base colour – to share it with another owner or keep a
+copy. *Settings → Import …* reads either kind of file and shows what is in it first. A device in the file is matched to
+yours by its key and PID, its PID, or its name; for each one you choose *Replace* (your device gets the file's LED names,
+drawing, rules and base colour – its own rules are removed, and it keeps its USB IDs), *Add as a new device* (when
+nothing matches) or *Skip*. Profiles with the same name get the imported rules added; your own colours win when a name
+is already used, and the general settings are only imported when you tick it. `config.json` and `layouts.json` are
+backed up first, and a file made for the old Virpil firmware has its LED numbers converted (05–24 → 01–20).
+Photos traced in the drawing editor stay on your PC and are not part of the file.
 
 Starting the exe while it is already running just opens the control panel. If the bridge is restarted, the control
 panel reloads itself.

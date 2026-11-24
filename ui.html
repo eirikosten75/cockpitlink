@@ -224,6 +224,17 @@
   .find-list label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
   .find-list label.added { opacity: .7; }
   .find-list small { display: block; color: var(--muted); }
+  .imp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px;
+             border: 1px solid var(--border); border-radius: 10px; }
+  .imp-row select { width: auto !important; }
+  .imp-row small { display: block; color: var(--muted); }
+  #impMore { display: grid; gap: 6px; font-size: 13px; }
+  #impMore label { display: flex; gap: 8px; align-items: center; }
+  .io-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  a.btn-link { display: inline-block; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+               text-decoration: none; background: var(--surface); font: inherit; font-size: 14px; }
+  a.btn-link:hover { background: var(--surface-2); }
+  a.btn-link.small { padding: 3px 10px; font-size: 12px; border-radius: 7px; }
 
   .face .photo { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 12px; pointer-events: none; }
 
@@ -477,6 +488,18 @@
         </div>
       </div>
       <div class="card">
+        <h2>Back up and share</h2>
+        <div class="body">
+          <p>Save your whole setup in one file – devices, LED names, rules, aircraft profiles, base colours, your own
+            colours and drawings – to keep a copy, move it to another PC or share it. To share one panel, use
+            <b>Export</b> on its card in the Panels tab.</p>
+          <p>Importing shows what is in the file first. You choose per device whether it replaces the matching device
+            or is skipped; config.json and layouts.json are backed up before anything is changed.</p>
+          <div class="io-btns"><a class="btn-link" id="btnExportAll" href="/api/config/export" download>Export setup …</a>
+            <button type="button" id="btnImport">Import …</button></div>
+        </div>
+      </div>
+      <div class="card">
         <h2>About</h2>
         <div class="body">
           <dl id="aboutList"></dl>
@@ -541,6 +564,19 @@
       <button type="button" id="findAgain">Search again</button>
       <button type="button" id="findCancel">Close</button>
       <button type="button" id="findAdd" class="primary">Add selected</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="impDlg" aria-labelledby="impTitle">
+  <form method="dialog" autocomplete="off">
+    <h3 id="impTitle">Import setup</h3>
+    <p class="find-intro" id="impIntro"></p>
+    <div class="find-list" id="impList"></div>
+    <div id="impMore"></div>
+    <div class="dlg-foot">
+      <span class="err" id="impErr"></span>
+      <button type="button" id="impCancel">Cancel</button>
+      <button type="button" id="impGo" class="primary">Import</button>
     </div>
   </form>
 </dialog>
@@ -658,9 +694,13 @@ function buildDevice(dev) {
   card.className = "card" + (layout?.wide ? " wide" : "");
   const h = document.createElement("h2");
   h.innerHTML = `<span></span><span class="right"><small></small><button class="small" type="button" data-draw></button>
+    <a class="btn-link small" data-export download>Export</a>
     <button class="small" type="button" data-setup>Setup</button></span>`;
   h.firstChild.textContent = dev.name;
   h.querySelector("small").textContent = `${dev.id} · PID ${dev.pid} · ${dev.leds.length} LEDs`;
+  const expLink = h.querySelector("[data-export]");
+  expLink.href = "/api/config/export?device=" + encodeURIComponent(dev.id);
+  expLink.title = "Save this panel's LED names, drawing, rules and base colour in a file, to share it or keep a copy";
   const drawBtn = h.querySelector("[data-draw]");
   drawBtn.textContent = layout ? "Edit drawing" : "Make drawing";
   drawBtn.title = layout ? "Move the LEDs, draw boxes, trace a photo" : "Make a drawing of this panel";
@@ -1405,6 +1445,85 @@ $("findAdd").addEventListener("click", async () => {
   if (!res.ok) { $("findErr").textContent = res.error; $("findAdd").disabled = false; return; }
   $("findDlg").close();
   toast(res.message);
+});
+
+// Import a setup file (whole setup or one device): show what it holds, let the user choose, then import
+let impData = null;
+$("btnImport").addEventListener("click", () => {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".json,application/json";
+  inp.addEventListener("change", async () => {
+    const file = inp.files[0];
+    if (!file) return;
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { toast("The file is not valid JSON.", true); return; }
+    const res = await post("/api/config/import/preview", { data });
+    if (!res.ok) { toast(res.error, true); return; }
+    impData = data;
+    showImport(res.preview, file.name);
+  });
+  inp.click();
+});
+
+function showImport(pv, fileName) {
+  $("impErr").textContent = "";
+  $("impTitle").textContent = pv.scope === "device" ? "Import a panel" : "Import setup";
+  const made = [pv.exported && `exported ${pv.exported}`, pv.bridge_version && `with version ${pv.bridge_version}`]
+    .filter(Boolean).join(" ");
+  $("impIntro").innerHTML = `<b>${esc(fileName)}</b>${made ? " – " + esc(made) : ""}. Choose what to do with each
+    device. Replace gives your device the file's LED names, drawing, rules and base colour; its other rules are removed.
+    config.json and layouts.json are backed up first.`;
+  const list = $("impList");
+  list.innerHTML = "";
+  for (const d of pv.devices) {
+    const row = document.createElement("div");
+    row.className = "imp-row";
+    const what = [`${d.n_leds} LEDs`, `${d.n_rules} rules`, d.n_profile_rules ? `${d.n_profile_rules} profile rules` : "",
+                  d.drawing ? "own drawing" : "", d.base_colour ? "base colour" : ""].filter(Boolean).join(" · ");
+    const where = d.target ? `matches your “${d.target_name}”` + (d.plugged_in ? "" : " (not plugged in now)")
+                           : (d.plugged_in ? "not in your config.json yet" : "not in your config.json, and not plugged in");
+    row.innerHTML = `<span><b></b><small></small><small></small></span>
+      <select aria-label="What to do with this device"></select>`;
+    row.querySelector("b").textContent = `${d.name} (PID ${d.pid})`;
+    row.querySelectorAll("small")[0].textContent = what;
+    row.querySelectorAll("small")[1].textContent = where;
+    const sel = row.querySelector("select");
+    sel.dataset.key = d.key;
+    const opts = d.target ? [["replace", `Replace “${d.target_name}”`], ["skip", "Skip"]]
+                          : [["add", "Add as a new device"], ["skip", "Skip"]];
+    sel.innerHTML = opts.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join("");
+    list.appendChild(row);
+  }
+  const more = [];
+  if (pv.profiles.length) {
+    more.push(`<div>Aircraft profiles: ${pv.profiles.map((p) => esc(p.name) + (p.exists ? " (adds to yours)" : " (new)")).join(", ")}</div>`);
+  }
+  if (pv.colors.length) more.push(`<div>Own colours: ${pv.colors.map(esc).join(", ")} – yours are kept if the name is already used.</div>`);
+  if (pv.converted) more.push(`<div>The file was made for the old Virpil firmware: its LED numbers are converted (05–24 → 01–20).</div>`);
+  if (pv.settings.length) {
+    more.push(`<label><input type="checkbox" id="impSettings"> Also import the settings (update rate, blink speed, colours
+      when MSFS is not connected and on exit, aircraft profiles on/off)</label>`);
+  }
+  $("impMore").innerHTML = more.join("");
+  $("impGo").disabled = false;
+  $("impDlg").showModal();
+}
+
+$("impCancel").addEventListener("click", () => { $("impDlg").close(); impData = null; });
+$("impGo").addEventListener("click", async () => {
+  const choices = {};
+  for (const s of $("impList").querySelectorAll("select")) choices[s.dataset.key] = s.value;
+  if (!Object.values(choices).some((v) => v !== "skip")) { $("impErr").textContent = "Every device is skipped."; return; }
+  $("impGo").disabled = true;
+  const res = await post("/api/config/import", { data: impData, choices, settings: !!$("impSettings")?.checked });
+  if (!res.ok) { $("impErr").textContent = res.error; $("impGo").disabled = false; return; }
+  $("impDlg").close();
+  impData = null;
+  toast(res.message);
+  await loadLayouts();
+  if (typeof loadConfigUI === "function") await loadConfigUI();
+  await refreshNow();
 });
 
 // =============================================================================================

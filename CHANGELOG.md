@@ -6,6 +6,17 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.1] – 2026-11-24
+
+### Added
+- **Back up and share your setup.** *Settings → Export setup …* saves everything in one `.vlb-setup.json` file –
+  devices, LED names, rules, aircraft profiles, base colours, own colours, your drawings and the general settings (not
+  the paths and ports of this PC). *Export* on a panel's card saves just that panel with its drawing, rules and base
+  colour, to share it or keep a copy.
+- *Settings → Import …* shows what a file holds before anything changes. Per device you choose *Replace* (the matching
+  device gets the file's LED names, drawing, rules and base colour), *Add as a new device* or *Skip*; settings only
+  when ticked. `config.json` and `layouts.json` are backed up first, and files made for the old firmware are converted.
+
 ## [2.0.1] – 2026-11-24
 
 ### Fixed
