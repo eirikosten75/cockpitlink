@@ -26,24 +26,15 @@ your Virpil devices and makes your own `config.json` (section 2). Updating later
 The Panels tab – your panels on the left, the chosen panel with its LEDs live in the middle, and the rules for the LED
 you click on the right:
 
-<picture>
-  <source media="(prefers-color-scheme: light)" srcset="docs/images/overview-light.png">
-  <img src="docs/images/overview-dark.png" alt="The Panels tab: list of panels, Control Panel #2 with the parking brake LED lit red and the gear LEDs green, and the Parking brake rule for the chosen LED" width="100%">
-</picture>
+<img src="docs/images/overview-dark.png" alt="The Panels tab: list of panels, Control Panel #2 with the parking brake LED lit red and the gear LEDs green, and the Parking brake rule for the chosen LED" width="100%">
 
 The Rules tab – every rule with its current value from MSFS and the state that applies right now:
 
-<picture>
-  <source media="(prefers-color-scheme: light)" srcset="docs/images/rules-light.png">
-  <img src="docs/images/rules-dark.png" alt="The Rules tab: gear, parking brake, autopilot, nav lights, canopy, fuel pressure and flaps rules with live values" width="100%">
-</picture>
+<img src="docs/images/rules-dark.png" alt="The Rules tab: gear, parking brake, autopilot, nav lights, canopy, fuel pressure and flaps rules with live values" width="100%">
 
 The rule editor – a simvar (or LVAR), the LED, and the states with their colours:
 
-<picture>
-  <source media="(prefers-color-scheme: light)" srcset="docs/images/rule-editor-light.png">
-  <img src="docs/images/rule-editor-dark.png" alt="The rule editor for the left gear: green when down, blue when up, blinking red in transit" width="70%">
-</picture>
+<img src="docs/images/rule-editor-dark.png" alt="The rule editor for the left gear: green when down, blue when up, blinking red in transit" width="70%">
 
 ## 1. Quick start
 
