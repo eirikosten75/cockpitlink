@@ -6,6 +6,18 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.2.1] – 2026-11-24
+
+### Changed
+- The control panel follows the size of the window everywhere. In the Panels tab the drawing of the chosen panel is
+  smaller (it grows with the window width but never gets larger when the window gets narrower), its labels shrink with
+  it, and the rules column sits right next to it. Below 1100 px the rules go under the panel; on phones everything is
+  one column and the top bar scrolls away.
+
+### Fixed
+- On narrow windows and phones, the rule list, the Settings tab, the Drawings tab, Setup and the buttons on a panel's
+  card no longer reach outside the window.
+
 ## [2.2] – 2026-11-24
 
 ### Changed

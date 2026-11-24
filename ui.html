@@ -99,7 +99,7 @@
   .pane-bar .grow { flex: 1; }
   #profSel { font: inherit; font-size: 13px; padding: 1px 4px; border-radius: 6px; border: 1px solid var(--border);
              background: var(--surface); color: var(--text); max-width: 260px; }
-  .settings { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+  .settings { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); align-items: start; }
   .settings .body { padding: 12px 14px 16px; display: grid; gap: 10px; }
   .settings .body p { margin: 0; color: var(--muted); font-size: 13px; }
   .settings label.opt { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; }
@@ -126,6 +126,8 @@
   .card h2 small { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: 12px; }
   .card.wide { grid-column: 1 / -1; }
   #devices .card h2 { flex-wrap: wrap; }
+  #devices .card h2 .right { flex-wrap: wrap; gap: 6px; min-width: 0; }
+  #devices .card h2 small { overflow-wrap: anywhere; }
 
   /* Panel face */
   .face { position: relative; background: var(--panel); margin: 12px; border-radius: 14px; border: 2px solid var(--panel-edge); }
@@ -200,15 +202,18 @@
   #devices .face .led:not(.slot) { cursor: pointer; }
   #devices .face .led.chosen { outline: 3px solid var(--accent); outline-offset: 3px; z-index: 4; }
   /* Panels tab, as in SPAD.neXt: list of panels | the chosen panel | rules for the chosen LED */
-  /* Everything follows the window: the drawing grows with its width (but always fits its height), the middle column is
-     as wide as the chosen panel, and the rules column comes right after it. */
+  /* Everything follows the window: the drawing is 12 % of the window width (never smaller than 150 px, never taller
+     than the window), so it only ever shrinks when the window gets narrower. The middle column is as wide as the
+     chosen panel, and the rules column comes right after it. --ar (width / height of the drawing) is set per card. */
   .panels-layout { display: grid; grid-template-columns: clamp(160px, 13vw, 240px) auto minmax(320px, 520px);
                    justify-content: start; gap: 20px; align-items: start; }
   .panels-layout .devices { display: block; min-width: 0; }
   .panels-layout .devices > .card[hidden] { display: none; }
-  .panels-layout .devices > .card { width: fit-content; min-width: 300px; max-width: 100%; }
-  .panels-layout .devices > .card:not(:has(.face.drawn)) { width: clamp(300px, 32vw, 560px); }
-  #devices .face.drawn { max-width: none; width: max(220px, min(24vw, calc((100vh - 300px) * var(--ar, .88)))); }
+  .panels-layout .devices > .card { --fw: max(150px, min(12vw, calc((100vh - 300px) * var(--ar, .88))));
+                                    width: calc(var(--fw) + 28px); min-width: 260px; max-width: 100%; }
+  .panels-layout .devices > .card:not(:has(.face.drawn)) { width: clamp(260px, 20vw, 360px); }
+  .panels-layout .devices > .card:has(.setup:not([hidden])) { width: min(100%, 560px); }
+  #devices .face.drawn { max-width: none; width: min(var(--fw), calc(100% - 24px)); }
   .dev-list, .lp { position: sticky; top: calc(var(--head-h, 57px) + 56px); max-height: calc(100vh - var(--head-h, 57px) - 76px); overflow: auto; }
   .dev-list { display: grid; align-content: start; padding: 6px; gap: 2px; }
   .dev-list h2 { margin: -6px -6px 4px; }
@@ -220,13 +225,12 @@
     /* No room for three columns: the rules go under the chosen panel. */
     .panels-layout { grid-template-columns: 170px minmax(0, 1fr); }
     .lp { grid-column: 2; position: static; max-height: none; max-width: 560px; }
-    #devices .face.drawn { width: max(220px, min(34vw, calc((100vh - 300px) * var(--ar, .88)))); }
   }
   @media (max-width: 700px) {
     .panels-layout { grid-template-columns: minmax(0, 1fr); }
     .lp { grid-column: 1; max-width: none; }
-    .panels-layout .devices > .card, .panels-layout .devices > .card:not(:has(.face.drawn)) { width: auto; min-width: 0; }
-    #devices .face.drawn { width: min(calc(100% - 24px), 420px); }
+    .panels-layout .devices > .card, .panels-layout .devices > .card:has(.setup:not([hidden])) { width: auto; min-width: 0; }
+    .panels-layout .devices > .card:not(:has(.face.drawn)):not(:has(.setup:not([hidden]))) { width: min(100%, 260px); }
     .dev-list { position: static; max-height: none; display: flex; flex-wrap: wrap; }
     .dev-list h2 { flex-basis: calc(100% + 12px); }
   }
@@ -382,6 +386,32 @@
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 30; padding: 10px 16px; border-radius: 10px;
            background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 28px #0003; display: none; max-width: min(640px, calc(100vw - 32px)); }
   .toast.err { border-color: var(--err); color: var(--err); }
+  /* Small windows and phones */
+  .ed > *, .ed-head > *, .ed-lib > * { min-width: 0; }
+  .ed-head select, .ed-lib select { max-width: 100%; }
+  #edKey { overflow-wrap: anywhere; }
+  /* The drawing of the chosen panel: labels and box texts shrink with it */
+  #devices .face.drawn { container-type: inline-size; }
+  #devices .face.drawn .lbl { font-size: clamp(7px, 4.2cqw, 10.5px); }
+  #devices .face.drawn .deco { font-size: clamp(6px, 4cqw, 11px); letter-spacing: 0; text-align: center; overflow: hidden; }
+  @media (max-width: 640px) {
+    /* The top bar scrolls away on phones, so it does not take half the screen; the tabs stay at the top. */
+    header { position: static; padding: 10px 12px; }
+    .pills { flex-basis: 100%; order: 3; gap: 6px; }
+    .pill { font-size: 12px; }
+    .tabs { top: 0; }
+    main { padding: 12px; }
+    .tabs { padding: 0 12px; }
+    /* A rule: on/off | name, simvar and LED | buttons, with the value and colours underneath */
+    .rule { grid-template-columns: 22px minmax(0, 1fr) auto; padding: 8px 10px; }
+    .rule .tgtc { grid-column: 2; }
+    .rule .val { grid-column: 2; }
+    .rule .acts { grid-column: 3; grid-row: 1; }
+    .setup { padding: 10px; }
+    .setup .row { grid-template-columns: 18px 26px minmax(0, 1fr) auto auto; gap: 6px; padding: 4px 2px; }
+    .setup input[type=text] { min-width: 0; max-width: 100%; }
+    .settings dl { grid-template-columns: 1fr; }
+  }
   .offline { display: none; margin: 20px; padding: 16px; border-radius: 12px; background: var(--err-bg); color: var(--err); }
 </style>
 </head>
@@ -416,7 +446,7 @@
 <main>
   <section id="pane-panels" role="tabpanel" aria-labelledby="tab-panels">
     <div class="pane-bar">
-      <p class="hint grow">Choose a panel on the left, then click an LED to see its rules and make new ones. <b>Setup</b> names the LEDs, <b>Edit drawing</b> changes the drawing.</p>
+      <p class="hint grow">Choose a panel, then click an LED to see its rules and make new ones. <b>Setup</b> names the LEDs, <b>Edit drawing</b> changes the drawing.</p>
       <button id="btnFind" title="Look for Virpil devices that are plugged in but not in config.json yet">Find new devices</button>
     </div>
     <div class="panels-layout">
@@ -771,7 +801,7 @@ function buildDevice(dev) {
     if (layout.aspect) face.style.aspectRatio = layout.aspect;
     // Width / height, so the drawing can be as large as the window allows (see #devices .face.drawn).
     const [aw, ah] = String(layout.aspect || "1310 / 1490").split("/").map(Number);
-    if (aw > 0 && ah > 0) face.style.setProperty("--ar", aw / ah);
+    if (aw > 0 && ah > 0) card.style.setProperty("--ar", aw / ah);
     const key = layoutKey(dev);
     if (layout.photo && PHOTOS.has(key)) {
       const img = document.createElement("img");
