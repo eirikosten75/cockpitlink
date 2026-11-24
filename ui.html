@@ -203,7 +203,8 @@
   .panels-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
   .panels-layout .devices { display: block; }
   .panels-layout .devices > .card[hidden] { display: none; }
-  #devices .face.drawn { max-width: none; width: max(280px, min(calc(100% - 24px), calc((100vh - 300px) * var(--ar, .88)))); }
+  .panels-layout .devices > .card:has(.face.drawn) { width: fit-content; min-width: min(100%, 300px); max-width: 100%; }
+  #devices .face.drawn { max-width: none; width: max(220px, min(calc(100% - 24px), calc((100vh - 300px) * var(--ar, .88) / 3))); }
   .dev-list, .lp { position: sticky; top: calc(var(--head-h, 57px) + 56px); max-height: calc(100vh - var(--head-h, 57px) - 76px); overflow: auto; }
   .dev-list { display: grid; align-content: start; padding: 6px; gap: 2px; }
   .dev-list h2 { margin: -6px -6px 4px; }
