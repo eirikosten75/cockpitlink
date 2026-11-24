@@ -23,16 +23,19 @@ your Virpil devices and makes your own `config.json` (section 2). Updating later
 
 ## Screenshots
 
-The control panel – rules with live values from MSFS, and the panels drawn with their LEDs as they are right now:
+The Panels tab – your panels on the left, the chosen panel with its LEDs live in the middle, and the rules for the LED
+you click on the right:
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/images/overview-light.png">
-  <img src="docs/images/overview-dark.png" alt="The control panel: the rules list with live values from MSFS, and the log" width="100%">
+  <img src="docs/images/overview-dark.png" alt="The Panels tab: list of panels, Control Panel #2 with the parking brake LED lit red and the gear LEDs green, and the Parking brake rule for the chosen LED" width="100%">
 </picture>
 
+The Rules tab – every rule with its current value from MSFS and the state that applies right now:
+
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="docs/images/panels-light.png">
-  <img src="docs/images/panels-dark.png" alt="Control Panel #2 and #1 drawn with their LEDs: the parking brake lit red, gear LEDs green, other buttons dim yellow" width="100%">
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/rules-light.png">
+  <img src="docs/images/rules-dark.png" alt="The Rules tab: gear, parking brake, autopilot, nav lights, canopy, fuel pressure and flaps rules with live values" width="100%">
 </picture>
 
 The rule editor – a simvar (or LVAR), the LED, and the states with their colours:
