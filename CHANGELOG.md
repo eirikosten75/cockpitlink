@@ -11,6 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 - The drawing of the chosen panel in the Panels tab is larger than in 2.2.1 (27 % of the window width, at least
   340 px, and never wider than the window). It still never gets larger when the window gets narrower.
+- Drawings of any shape fit the Panels tab: a wide or tall drawing gets about the same area as a Virpil panel, and no
+  drawing is taller than the window. The Drawings tab keeps its large drawing size, so drawing stays easy.
 
 ## [2.2.1] – 2026-11-24
 
