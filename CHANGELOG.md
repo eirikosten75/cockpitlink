@@ -6,7 +6,7 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.2] – 2026-11-24
 
 ### Changed
 - **The Panels tab works like SPAD.neXt.** The names of your devices are listed on the left, the chosen device is shown
