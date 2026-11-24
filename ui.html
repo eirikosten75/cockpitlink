@@ -202,14 +202,14 @@
   #devices .face .led:not(.slot) { cursor: pointer; }
   #devices .face .led.chosen { outline: 3px solid var(--accent); outline-offset: 3px; z-index: 4; }
   /* Panels tab, as in SPAD.neXt: list of panels | the chosen panel | rules for the chosen LED */
-  /* Everything follows the window: the drawing is 12 % of the window width (never smaller than 150 px, never taller
+  /* Everything follows the window: the drawing is 18 % of the window width (never smaller than 225 px, never taller
      than the window), so it only ever shrinks when the window gets narrower. The middle column is as wide as the
      chosen panel, and the rules column comes right after it. --ar (width / height of the drawing) is set per card. */
   .panels-layout { display: grid; grid-template-columns: clamp(160px, 13vw, 240px) auto minmax(320px, 520px);
                    justify-content: start; gap: 20px; align-items: start; }
   .panels-layout .devices { display: block; min-width: 0; }
   .panels-layout .devices > .card[hidden] { display: none; }
-  .panels-layout .devices > .card { --fw: max(150px, min(12vw, calc((100vh - 300px) * var(--ar, .88))));
+  .panels-layout .devices > .card { --fw: max(225px, min(18vw, calc((100vh - 300px) * var(--ar, .88))));
                                     width: calc(var(--fw) + 28px); min-width: 260px; max-width: 100%; }
   .panels-layout .devices > .card:not(:has(.face.drawn)) { width: clamp(260px, 20vw, 360px); }
   .panels-layout .devices > .card:has(.setup:not([hidden])) { width: min(100%, 560px); }

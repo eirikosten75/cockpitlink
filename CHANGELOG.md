@@ -6,6 +6,12 @@ All notable changes to Virpil LED Bridge. Downloads are on the
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.2.2] – 2026-11-24
+
+### Changed
+- The drawing of the chosen panel in the Panels tab is 50 % larger than in 2.2.1 (18 % of the window width, at least
+  225 px). It still never gets larger when the window gets narrower.
+
 ## [2.2.1] – 2026-11-24
 
 ### Changed
