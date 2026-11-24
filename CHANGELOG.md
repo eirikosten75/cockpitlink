@@ -9,8 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [2.2.2] – 2026-11-24
 
 ### Changed
-- The drawing of the chosen panel in the Panels tab is 50 % larger than in 2.2.1 (18 % of the window width, at least
-  225 px). It still never gets larger when the window gets narrower.
+- The drawing of the chosen panel in the Panels tab is larger than in 2.2.1 (27 % of the window width, at least
+  340 px, and never wider than the window). It still never gets larger when the window gets narrower.
 
 ## [2.2.1] – 2026-11-24
 
