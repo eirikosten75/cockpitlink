@@ -58,9 +58,14 @@ https://github.com/eirikosten75/cockpitlink/wiki/Privacy-policy
 Website: https://github.com/eirikosten75/cockpitlink
 Support: https://github.com/eirikosten75/cockpitlink/issues
 
-## System requirements (Partner Center → Properties)
-Minimum: Windows 10 version 2004 or newer, x64. Hardware: VIRPIL controllers with LEDs (USB).
-Under "This product depends on …": tick that it needs other software (VIRPIL VPC Software Suite) and hardware.
+## System requirements
+There is no checkbox for depending on other hardware or software; the REQUIREMENTS part of the description covers it.
+Properties → Product declarations and System requirements (keyboard, mouse, camera …) are optional – leave them empty.
+If the Store listing page has "Additional system requirements", add under Minimum:
+- VIRPIL controllers with LEDs (USB)
+- VIRPIL VPC Software Suite VPC-JOY-20261027 or newer
+- Microsoft Flight Simulator 2020 or 2024
+The package itself requires Windows 10 version 2004 or newer, x64.
 
 ## Notes for certification
 CockpitLink controls the LEDs of VIRPIL USB controllers from Microsoft Flight Simulator. To test it without the
