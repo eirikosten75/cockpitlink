@@ -1,3 +1,5 @@
+<img src="docs/images/cockpitlink-logo.svg" alt="CockpitLink logo: an attitude indicator whose horizon is a link with two yellow nodes" width="96" align="right">
+
 # CockpitLink for MSFS 2020/2024
 
 *Formerly Virpil LED Bridge – see [Updating from Virpil LED Bridge](#updating-from-virpil-led-bridge).*
@@ -11,7 +13,7 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 
 ## ⬇️ Download
 
-**[Download the latest version (CockpitLink-v3.0.zip)](https://github.com/eirikosten75/cockpitlink/releases/download/v3.0/CockpitLink-v3.0.zip)**
+**[Download the latest version (CockpitLink-v3.0.1.zip)](https://github.com/eirikosten75/cockpitlink/releases/download/v3.0.1/CockpitLink-v3.0.1.zip)**
 – or see all versions under [Releases](https://github.com/eirikosten75/cockpitlink/releases).
 
 The zip contains `CockpitLink.exe` (no Python needed), `config.example.json`, this README and the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds

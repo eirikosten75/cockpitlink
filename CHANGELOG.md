@@ -6,6 +6,13 @@ All notable changes to CockpitLink (called Virpil LED Bridge before 3.0). Downlo
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.1] – 2026-11-25
+
+### Changed
+- **New logo:** an attitude indicator whose horizon is a link with two yellow nodes – the simulator and your cockpit
+  hardware, joined. It is the program icon, the tray icon and the browser tab icon of the control panel, and it is
+  sharper at every size (the icon file now has sizes from 16 to 256 px).
+
 ## [3.0] – 2026-11-25
 
 ### Changed – new name
@@ -231,6 +238,7 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
+[3.0.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v3.0.1
 [3.0]: https://github.com/eirikosten75/cockpitlink/releases/tag/v3.0
 [2.2.2]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.2.2
 [2.2.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.2.1

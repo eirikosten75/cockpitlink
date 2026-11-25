@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "3.0"
+VERSION = "3.0.1"
 
 log = logging.getLogger("cockpitlink")
 
@@ -2871,19 +2871,35 @@ def set_autostart(enabled: bool) -> str:
 # --------------------------------------------------------------------------
 # Tray icon
 # --------------------------------------------------------------------------
-def make_icon_image():
+def make_icon_image(size: int = 64):
+    """The CockpitLink logo: an attitude indicator whose horizon is a link with two nodes (the same drawing as
+    docs/images/cockpitlink-logo.svg, on a 64-unit grid). Drawn 8x larger and scaled down for smooth edges."""
     from PIL import Image, ImageDraw
 
-    size = 64
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    k = size * 8 / 64
+    big = int(64 * k)
+
+    def box(cx, cy, r):
+        return (round((cx - r) * k), round((cy - r) * k), round((cx + r) * k), round((cy + r) * k))
+
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle((2, 2, size - 3, size - 3), radius=12, fill=(28, 30, 34, 255), outline=(90, 95, 105, 255),
-                        width=2)
-    for i, col in enumerate([(60, 200, 90), (60, 200, 90), (230, 70, 60)]):
-        cx = 16 + i * 16
-        d.ellipse((cx - 6, 34, cx + 6, 46), fill=col)
-    d.rectangle((14, 16, 50, 24), fill=(220, 190, 60))
-    return img
+    d.ellipse(box(32, 32, 29.5), fill=(0x15, 0x18, 0x1D, 255))
+    # sky and ground inside the dial
+    dial = Image.new("RGBA", (big, big), (0x2F, 0x7F, 0xD1, 255))
+    ImageDraw.Draw(dial).rectangle((0, round(33 * k), big, big), fill=(0x8A, 0x5A, 0x2B, 255))
+    mask = Image.new("L", (big, big), 0)
+    ImageDraw.Draw(mask).ellipse(box(32, 32, 27), fill=255)
+    img.paste(dial, (0, 0), mask)
+    # light grey rim
+    d.ellipse(box(32, 32, 29), outline=(0xC9, 0xCE, 0xD6, 255), width=round(3 * k))
+    # the link: a white bar with yellow nodes at the ends
+    d.rounded_rectangle((round(10.5 * k), round(30.5 * k), round(53.5 * k), round(35.5 * k)), radius=round(2.5 * k),
+                        fill=(0xF5, 0xF6, 0xF7, 255))
+    for cx in (13, 51):
+        d.ellipse(box(cx, 33, 7), fill=(0x15, 0x18, 0x1D, 255))
+        d.ellipse(box(cx, 33, 5), fill=(0xE8, 0xC2, 0x3A, 255))
+    return img.resize((size, size), Image.LANCZOS)
 
 
 def start_tray(bridge: Bridge, url: str):
