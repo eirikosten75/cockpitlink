@@ -2889,9 +2889,43 @@ def store_autostart_enabled() -> bool:
     return state in (2, 4)  # enabled, enabled by policy
 
 
+_PACKAGED: bool | None = None
+
+
+def running_packaged() -> bool:
+    """True when this copy runs as the Microsoft Store (MSIX) app."""
+    global _PACKAGED
+    if _PACKAGED is None:
+        _PACKAGED = False
+        if os.name == "nt":
+            try:
+                import ctypes
+                length = ctypes.c_uint32(0)
+                # APPMODEL_ERROR_NO_PACKAGE (15700) means: not running from a package
+                _PACKAGED = ctypes.windll.kernel32.GetCurrentPackageFullName(ctypes.byref(length), None) != 15700
+            except (AttributeError, OSError):
+                _PACKAGED = False
+    return _PACKAGED
+
+
+def _run_key_value() -> str | None:
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _RUN_KEY) as k:
+            return winreg.QueryValueEx(k, _RUN_NAME)[0]
+    except OSError:
+        return None
+
+
 def autostart_status() -> dict:
+    if running_packaged():
+        # The Store app starts with Windows through its startup task, switched in Windows Settings → Apps → Startup.
+        enabled = store_autostart_enabled()
+        return {"available": True, "enabled": enabled, "store_app": True,
+                "both": enabled and _run_key_value() is not None}
     status = _autostart_status()
     status["store_enabled"] = store_autostart_enabled()
+    status["both"] = bool(status.get("enabled")) and status["store_enabled"]
     return status
 
 
@@ -2915,7 +2949,7 @@ def migrate_autostart() -> None:
     """Before 3.0 the entry was called VirpilLedBridge and pointed at VirpilLedBridge.exe. If it is there, it is
     replaced by one for this exe, so Start with Windows stays on after the update."""
     cmd = autostart_command()
-    if cmd is None:
+    if cmd is None or running_packaged():
         return
     import winreg
     try:
@@ -2932,6 +2966,11 @@ def migrate_autostart() -> None:
 
 
 def set_autostart(enabled: bool) -> str:
+    if running_packaged():
+        # A Store app cannot switch its own startup task on without asking; Windows Settings does it.
+        os.startfile("ms-settings:startupapps")  # noqa: S606
+        return ("Windows Settings → Apps → Startup is open: switch CockpitLink " + ("on" if enabled else "off")
+                + " there.")
     cmd = autostart_command()
     if cmd is None:
         raise ValueError("Start with Windows is only available when running CockpitLink.exe")

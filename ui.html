@@ -1303,10 +1303,12 @@ function renderHeader(st) {
   $("pAuto").title = a.available
     ? (a.stale ? "Set up for an exe in another folder: " + a.stale + " – tick to use this one" : "Start CockpitLink.exe automatically when you sign in to Windows")
     : (a.reason || "Not available");
-  const both = a.enabled && a.store_enabled;
+  const both = !!a.both;
   $("autoBoth").hidden = !both;
-  if (both) $("autoBoth").textContent = "CockpitLink from the Microsoft Store is also set to start with Windows. Only one " +
-    "can run at a time – untick one of them (the Store app in Windows Settings → Apps → Startup).";
+  if (both) $("autoBoth").textContent = "Both CockpitLink from the Microsoft Store and the CockpitLink.exe from the zip are " +
+    "set to start with Windows. Only one can run at a time – turn one of them off (the Store app in Windows Settings → " +
+    "Apps → Startup).";
+  if (a.store_app) $("pAuto").title = "Switched in Windows Settings → Apps → Startup – ticking or unticking opens it";
 }
 
 $("chkAuto").addEventListener("change", async (e) => {

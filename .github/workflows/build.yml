@@ -88,6 +88,23 @@ jobs:
           name: ${{ steps.zip.outputs.name }}
           path: ${{ steps.zip.outputs.name }}
 
+      # The Microsoft Store package (unsigned – the Store signs it on submission). Only for versions that have msix/.
+      - name: Make the Microsoft Store package (MSIX)
+        id: msix
+        if: hashFiles('msix/build-msix.ps1') != ''
+        shell: pwsh
+        run: |
+          ./msix/build-msix.ps1 -Exe CockpitLink.exe
+          $file = Get-ChildItem CockpitLink-*.msix | Select-Object -First 1
+          "name=$($file.Name)" >> $env:GITHUB_OUTPUT
+          "| $($file.Name) | ``$((Get-FileHash $file -Algorithm SHA256).Hash)`` |" >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        if: steps.msix.outputs.name != ''
+        with:
+          name: ${{ steps.msix.outputs.name }}
+          path: ${{ steps.msix.outputs.name }}
+
       - name: Attach the zip to the release
         if: env.TAG != '' && (github.event_name == 'release' || inputs.attach)
         env:
