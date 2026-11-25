@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Virpil LED Bridge is a small hobby project for flight-sim enthusiasts. Everyone is welcome here – whatever your
+CockpitLink is a small hobby project for flight-sim enthusiasts. Everyone is welcome here – whatever your
 experience, background or which aircraft you fly.
 
 ## Our pledge

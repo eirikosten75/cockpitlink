@@ -1,4 +1,4 @@
-# Sends the released VirpilLedBridge.exe to VirusTotal (official API v3) after each release build, waits for the
+# Sends the released CockpitLink.exe to VirusTotal (official API v3) after each release build, waits for the
 # scan, shows the result in the run summary and adds the report link to the release notes if it is not there.
 # Needs the repository secret VT_API_KEY (a VirusTotal account's API key).
 name: VirusTotal scan
@@ -27,11 +27,11 @@ jobs:
       - name: Download the release zip
         run: |
           mkdir dl && cd dl
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "VirpilLedBridge-$TAG.zip"
-          unzip -q "VirpilLedBridge-$TAG.zip" VirpilLedBridge.exe
-          sha=$(sha256sum VirpilLedBridge.exe | cut -d' ' -f1)
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "CockpitLink-$TAG.zip"
+          unzip -q "CockpitLink-$TAG.zip" CockpitLink.exe
+          sha=$(sha256sum CockpitLink.exe | cut -d' ' -f1)
           echo "SHA=$sha" >> "$GITHUB_ENV"
-          echo "VirpilLedBridge.exe from $TAG: $sha"
+          echo "CockpitLink.exe from $TAG: $sha"
 
       - name: Upload to VirusTotal and wait for the result
         env:
@@ -39,7 +39,7 @@ jobs:
         run: |
           if [ -z "$VT_API_KEY" ]; then echo "::error::The secret VT_API_KEY is missing"; exit 1; fi
           resp=$(curl -sS --fail-with-body -X POST https://www.virustotal.com/api/v3/files \
-                   -H "x-apikey: $VT_API_KEY" -F "file=@dl/VirpilLedBridge.exe")
+                   -H "x-apikey: $VT_API_KEY" -F "file=@dl/CockpitLink.exe")
           id=$(echo "$resp" | jq -r '.data.id // empty')
           if [ -z "$id" ]; then echo "::error::Upload failed: $(echo "$resp" | jq -c '.error // .')"; exit 1; fi
           echo "Analysis id: $id"
@@ -54,7 +54,7 @@ jobs:
           done
           url="https://www.virustotal.com/gui/file/$SHA"
           {
-            echo "### VirusTotal – VirpilLedBridge.exe $TAG"
+            echo "### VirusTotal – CockpitLink.exe $TAG"
             echo "SHA-256 \`$SHA\` · [report]($url)"
             echo
           } >> "$GITHUB_STEP_SUMMARY"
@@ -79,7 +79,7 @@ jobs:
           url="https://www.virustotal.com/gui/file/$SHA"
           body=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body -q .body)
           if echo "$body" | grep -qi "$SHA"; then echo "The release notes already link the report."; exit 0; fi
-          printf '%s\n\n**VirusTotal:** [scan report](%s) for `VirpilLedBridge.exe` (SHA-256 `%s`). A few engines (mostly machine-learning "static AI" scanners) may flag it, which is a common false positive for exes packed with PyInstaller.\n' \
+          printf '%s\n\n**VirusTotal:** [scan report](%s) for `CockpitLink.exe` (SHA-256 `%s`). A few engines (mostly machine-learning "static AI" scanners) may flag it, which is a common false positive for exes packed with PyInstaller.\n' \
             "$body" "$url" "$SHA" > notes.md
           gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --notes-file notes.md
           echo "Added the report link to the release notes."

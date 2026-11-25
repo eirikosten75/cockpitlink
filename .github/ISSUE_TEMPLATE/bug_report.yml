@@ -19,8 +19,8 @@ body:
     attributes:
       label: How do you run it?
       options:
-        - VirpilLedBridge.exe
-        - From Python (virpil_bridge.py)
+        - CockpitLink.exe
+        - From Python (cockpitlink.py)
     validations:
       required: true
   - type: dropdown

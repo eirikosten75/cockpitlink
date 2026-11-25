@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the [latest release](https://github.com/eirikosten75/virpil-led-bridge/releases/latest) receives fixes.
+Only the [latest release](https://github.com/eirikosten75/cockpitlink/releases/latest) receives fixes.
 
 ## How the bridge is exposed
 
@@ -19,7 +19,7 @@ Only the [latest release](https://github.com/eirikosten75/virpil-led-bridge/rele
 Please **do not** report security problems in a public issue.
 
 Use GitHub's private reporting instead: go to the
-[Security tab](https://github.com/eirikosten75/virpil-led-bridge/security) and choose **Report a vulnerability**.
+[Security tab](https://github.com/eirikosten75/cockpitlink/security) and choose **Report a vulnerability**.
 Describe the problem, how to reproduce it and which version you used.
 
 This is a hobby project, so there is no guaranteed response time, but reports are taken seriously and you will get an

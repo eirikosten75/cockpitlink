@@ -1,4 +1,6 @@
-# Virpil LED Bridge for MSFS 2020/2024
+# CockpitLink for MSFS 2020/2024
+
+*Formerly Virpil LED Bridge – see [Updating from Virpil LED Bridge](#updating-from-virpil-led-bridge).*
 
 Drives the LEDs on Virpil controllers from what happens in MSFS. The program runs in the background on your PC and:
 
@@ -9,17 +11,30 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 
 ## ⬇️ Download
 
-**[Download the latest version (VirpilLedBridge-v2.2.2.zip)](https://github.com/eirikosten75/virpil-led-bridge/releases/download/v2.2.2/VirpilLedBridge-v2.2.2.zip)**
-– or see all versions under [Releases](https://github.com/eirikosten75/virpil-led-bridge/releases).
+**[Download the latest version (CockpitLink-v3.0.zip)](https://github.com/eirikosten75/cockpitlink/releases/download/v3.0/CockpitLink-v3.0.zip)**
+– or see all versions under [Releases](https://github.com/eirikosten75/cockpitlink/releases).
 
-The zip contains `VirpilLedBridge.exe` (no Python needed), `config.example.json`, this README and the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds
+The zip contains `CockpitLink.exe` (no Python needed), `config.example.json`, this README and the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds
 your Virpil devices and makes your own `config.json` (section 2). Updating later never overwrites it.
 
-📖 **New here?** The [wiki](https://github.com/eirikosten75/virpil-led-bridge/wiki) has a step-by-step
-[getting started guide](https://github.com/eirikosten75/virpil-led-bridge/wiki/Getting-started), a
-[rule cookbook](https://github.com/eirikosten75/virpil-led-bridge/wiki/Rule-cookbook), tips for
-[using LVARs](https://github.com/eirikosten75/virpil-led-bridge/wiki/Using-LVARs) and an
-[FAQ](https://github.com/eirikosten75/virpil-led-bridge/wiki/FAQ-and-troubleshooting).
+### Updating from Virpil LED Bridge
+
+Version 3.0 is the same program with a new name. To update from Virpil LED Bridge 2.x:
+
+1. Quit the old bridge (tray icon → *Quit*).
+2. Put `CockpitLink.exe` in the same folder as your `config.json` and `layouts.json` – they are used as they are,
+   with your devices, LED names, rules, profiles and drawings.
+3. Start `CockpitLink.exe`. If *Start with Windows* was on, it now starts CockpitLink instead.
+4. Delete the old `VirpilLedBridge.exe`.
+
+Files you exported with Virpil LED Bridge (`.vlb-setup.json`, `.vlb-profile.json`) can still be imported. The
+control panel is at the same address as before, http://127.0.0.1:8765/.
+
+📖 **New here?** The [wiki](https://github.com/eirikosten75/cockpitlink/wiki) has a step-by-step
+[getting started guide](https://github.com/eirikosten75/cockpitlink/wiki/Getting-started), a
+[rule cookbook](https://github.com/eirikosten75/cockpitlink/wiki/Rule-cookbook), tips for
+[using LVARs](https://github.com/eirikosten75/cockpitlink/wiki/Using-LVARs) and an
+[FAQ](https://github.com/eirikosten75/cockpitlink/wiki/FAQ-and-troubleshooting).
 
 ## Screenshots
 
@@ -42,7 +57,7 @@ The rule editor – a simvar (or LVAR), the LED, and the states with their colou
    **update the firmware** of your Virpil devices with its VPC Configuration Tool. This is required from version 2.0:
    the bridge uses the LED numbers of that firmware (see section 2).
 2. Plug in your Virpil devices, and unzip the files to a folder of your choice.
-3. Double-click `VirpilLedBridge.exe`. It needs no Python and has no console window. On the first start it finds
+3. Double-click `CockpitLink.exe`. It needs no Python and has no console window. On the first start it finds
    your Virpil devices and writes `config.json` next to the exe (see section 2).
 4. Double-click the **tray icon** (it may be hidden under the ^ arrow) to open the control panel
    at http://127.0.0.1:8765/.
@@ -140,7 +155,7 @@ The control panel has five tabs. The page remembers the last one, and you can li
 - **Settings:** aircraft profiles on/off, *Start with Windows*, *Find new devices*, *Back up and share* (below), and the
   version and config path.
 
-**Back up and share your setup.** *Settings → Export setup …* saves everything in one `.vlb-setup.json` file: devices,
+**Back up and share your setup.** *Settings → Export setup …* saves everything in one `.cockpitlink-setup.json` file: devices,
 LED names, rules, aircraft profiles, base colours, your own colours, your drawings from `layouts.json` and the general
 settings (not the paths and ports of this PC). *Export* on a panel's card in the Panels tab saves just that panel – its
 LED names, drawing, rules (also those in aircraft profiles) and base colour – to share it with another owner or keep a
@@ -345,13 +360,13 @@ equals X”) and choose the script action.
 
 ```
 pip install SimConnect pystray pillow
-python virpil_bridge.py --dry-run -v   # test without hardware: logs the commands
-python virpil_bridge.py                # normal operation
-python virpil_bridge.py --no-sim       # API only, no SimConnect rules
-python virpil_bridge.py --no-tray      # no tray icon (quit with Ctrl+C)
+python cockpitlink.py --dry-run -v   # test without hardware: logs the commands
+python cockpitlink.py                # normal operation
+python cockpitlink.py --no-sim       # API only, no SimConnect rules
+python cockpitlink.py --no-tray      # no tray icon (quit with Ctrl+C)
 ```
 
-If you change `virpil_bridge.py` or `ui.html`, rebuild the exe with `.\build.ps1`
+If you change `cockpitlink.py` or `ui.html`, rebuild the exe with `.\build.ps1`
 (requires `pip install -r requirements-build.txt`). Changes to `config.json` and `layouts.json` need no rebuild (the `layouts` library folder is built into the exe).
 
 The exe in each release is built by GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml))
@@ -382,9 +397,10 @@ Bug reports, panel drawings, rules and code are welcome – see [CONTRIBUTING.md
 
 ## Licence
 
-Virpil LED Bridge is free software, released under the **GNU General Public License v3.0** – see [LICENSE](LICENSE).
+CockpitLink is free software, released under the **GNU General Public License v3.0** – see [LICENSE](LICENSE).
 You may use, change and share it; if you distribute a modified version, it must also be released under GPL-3.0 with
 its source code.
 
-Not affiliated with Virpil Controls or Microsoft. `VPC_LED_Control.exe` is part of Virpil's VPC Software Suite and is
+Not affiliated with VIRPIL Controls or Microsoft; Virpil and VPC are names of VIRPIL Controls, used here only to
+say which devices CockpitLink works with. `VPC_LED_Control.exe` is part of Virpil's VPC Software Suite and is
 not included here.

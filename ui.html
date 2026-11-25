@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Virpil LED Bridge</title>
+<title>CockpitLink</title>
 <style>
   :root {
     --bg: #f3f4f6;
@@ -418,7 +418,7 @@
 </head>
 <body>
 <header>
-  <h1>Virpil LED Bridge <span class="ver" id="ver"></span></h1>
+  <h1>CockpitLink <span class="ver" id="ver"></span></h1>
   <div class="pills">
     <span class="pill" id="pSim"><span class="dot"></span><span>MSFS: …</span></span>
     <span class="pill" id="pLed" role="status"><span class="dot"></span><span>LEDs: …</span></span>
@@ -434,7 +434,7 @@
   </div>
 </header>
 
-<div class="offline" id="offline" role="alert">Cannot reach the bridge. Has it been closed? Start VirpilLedBridge.exe and reload this page.</div>
+<div class="offline" id="offline" role="alert">Cannot reach the bridge. Has it been closed? Start CockpitLink.exe and reload this page.</div>
 
 <nav class="tabs" role="tablist" aria-label="Sections" id="tabs">
   <button type="button" role="tab" id="tab-panels" aria-controls="pane-panels" data-tab="panels">Panels</button>
@@ -553,7 +553,7 @@
       <div class="card">
         <h2>Windows</h2>
         <div class="body">
-          <label class="opt" id="pAuto" title="Start VirpilLedBridge.exe automatically when you sign in to Windows">
+          <label class="opt" id="pAuto" title="Start CockpitLink.exe automatically when you sign in to Windows">
             <input type="checkbox" id="chkAuto"> Start with Windows</label>
           <p>Starts the bridge in the tray when you sign in, so the LEDs are ready before you start MSFS.</p>
         </div>
@@ -581,10 +581,10 @@
         <h2>About</h2>
         <div class="body">
           <dl id="aboutList"></dl>
-          <p><a href="https://github.com/eirikosten75/virpil-led-bridge#readme" target="_blank" rel="noopener">README</a> ·
-            <a href="https://github.com/eirikosten75/virpil-led-bridge/wiki" target="_blank" rel="noopener">Wiki</a> ·
-            <a href="https://github.com/eirikosten75/virpil-led-bridge/releases" target="_blank" rel="noopener">Releases</a> ·
-            <a href="https://github.com/eirikosten75/virpil-led-bridge/issues/new/choose" target="_blank" rel="noopener">Report a problem</a></p>
+          <p><a href="https://github.com/eirikosten75/cockpitlink#readme" target="_blank" rel="noopener">README</a> ·
+            <a href="https://github.com/eirikosten75/cockpitlink/wiki" target="_blank" rel="noopener">Wiki</a> ·
+            <a href="https://github.com/eirikosten75/cockpitlink/releases" target="_blank" rel="noopener">Releases</a> ·
+            <a href="https://github.com/eirikosten75/cockpitlink/issues/new/choose" target="_blank" rel="noopener">Report a problem</a></p>
         </div>
       </div>
     </div>
@@ -1273,7 +1273,7 @@ function renderLedPill(lc) {
 }
 
 function renderHeader(st) {
-  if (st.version) { $("ver").textContent = "v" + st.version; document.title = "Virpil LED Bridge v" + st.version; }
+  if (st.version) { $("ver").textContent = "v" + st.version; document.title = "CockpitLink v" + st.version; }
   const sim = $("pSim");
   sim.className = "pill " + (!st.sim.enabled ? "" : st.sim.connected ? "ok" : "warn");
   const label = !st.sim.enabled ? "MSFS: off (API only)" : st.sim.connected ? "MSFS connected" : "Waiting for MSFS";
@@ -1295,7 +1295,7 @@ function renderHeader(st) {
   if (!chk.dataset.busy) chk.checked = !!a.enabled;
   chk.disabled = !a.available;
   $("pAuto").title = a.available
-    ? (a.stale ? "Set up for an exe in another folder: " + a.stale + " – tick to use this one" : "Start VirpilLedBridge.exe automatically when you sign in to Windows")
+    ? (a.stale ? "Set up for an exe in another folder: " + a.stale + " – tick to use this one" : "Start CockpitLink.exe automatically when you sign in to Windows")
     : (a.reason || "Not available");
 }
 
@@ -2379,7 +2379,7 @@ function renderProfileBar() {
   };
   add("+ New profile", () => newProfile(false));
   if (lastStatus?.sim?.aircraft) add("+ Profile for this aircraft", () => newProfile(true), lastStatus.sim.aircraft);
-  add("Import …", importProfile, "Add a profile from a file exported by Virpil LED Bridge");
+  add("Import …", importProfile, "Add a profile from a file exported by CockpitLink");
   $("rulesTitle").textContent = ruleScope ? `Rules – profile “${ruleScope}”` : "Rules – all aircraft";
   renderProfileSettings();
 }

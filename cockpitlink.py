@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Virpil LED Bridge for MSFS 2020/2024
-====================================
+CockpitLink for MSFS 2020/2024
+==============================
 
 Drives the LEDs on Virpil controllers from what happens in the simulator.
 
@@ -25,11 +25,11 @@ The LEDs are written through Virpil's own VPC_LED_Control.exe, which comes with 
 VPC Software Suite.
 
 Run:
-    python virpil_bridge.py                 # normal operation (with a tray icon)
-    python virpil_bridge.py --dry-run       # no hardware, log only
-    python virpil_bridge.py --no-sim        # API only, no SimConnect
-    python virpil_bridge.py --no-tray       # no tray icon (quit with Ctrl+C)
-    python virpil_bridge.py --open          # open the control panel in the browser on start
+    python cockpitlink.py                 # normal operation (with a tray icon)
+    python cockpitlink.py --dry-run       # no hardware, log only
+    python cockpitlink.py --no-sim        # API only, no SimConnect
+    python cockpitlink.py --no-tray       # no tray icon (quit with Ctrl+C)
+    python cockpitlink.py --open          # open the control panel in the browser on start
 """
 
 from __future__ import annotations
@@ -51,9 +51,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "2.2.2"
+VERSION = "3.0"
 
-log = logging.getLogger("virpil")
+log = logging.getLogger("cockpitlink")
 
 DEFAULT_COLORS = {
     "off":    (0x00, 0x00, 0x00),
@@ -1457,7 +1457,22 @@ LED_NUMBERS = "vpc-20261027"
 REQUIRED_VPC_VERSION = "20261027"
 
 # Setup files (Settings → Export / Import, and Export on a device card).
-CONFIG_FILE_KEY = "virpil_led_bridge_config"
+CONFIG_FILE_KEY = "cockpitlink_config"
+PROFILE_FILE_KEY = "cockpitlink_profile"
+# Files exported before 3.0, when the program was called Virpil LED Bridge, can still be imported.
+OLD_CONFIG_FILE_KEY = "virpil_led_bridge_config"
+OLD_PROFILE_FILE_KEY = "virpil_led_bridge_profile"
+
+
+def _file_kind(data) -> str | None:
+    """'config' or 'profile' for a file exported by this program (also before 3.0), otherwise None."""
+    if not isinstance(data, dict):
+        return None
+    if data.get(CONFIG_FILE_KEY) == 1 or data.get(OLD_CONFIG_FILE_KEY) == 1:
+        return "config"
+    if data.get(PROFILE_FILE_KEY) == 1 or data.get(OLD_PROFILE_FILE_KEY) == 1:
+        return "profile"
+    return None
 # Settings that an import of the whole setup may bring along (when ticked). Paths and ports of this PC are not.
 IMPORT_SETTINGS = ("sim_poll_ms", "blink_interval_ms", "on_disconnect_color", "on_exit", "profiles_enabled",
                    "profile_select")
@@ -1664,7 +1679,7 @@ def make_starter_config(config_path: str) -> dict:
     """A new config.json from config.example.json and the Virpil devices plugged in now."""
     example = load_example_config(config_path)
     cfg = {k: v for k, v in example.items() if k not in ("_info", "devices", "rules", "startup", "colors")}
-    cfg = {"_info": "Made by Virpil LED Bridge from the devices it found. Change it in the control panel, or by "
+    cfg = {"_info": "Made by CockpitLink from the devices it found. Change it in the control panel, or by "
                     "hand and then press Reload config. config.example.json and the wiki show the format.",
            **cfg, "startup": {}, "colors": {}, "devices": {}, "rules": []}
     try:
@@ -1971,7 +1986,7 @@ class Bridge:
         used_devs = {r["device"] for r in prof.get("rules", [])}
         colours = _colour_names(prof.get("rules", [])) & set(cfg.get("colors", {}))
         return {
-            "virpil_led_bridge_profile": 1,
+            PROFILE_FILE_KEY: 1,
             "bridge_version": VERSION,
             "exported": time.strftime("%Y-%m-%d"),
             "profile": prof,
@@ -1983,9 +1998,8 @@ class Bridge:
     def import_profile(self, data: dict) -> str:
         """Adds a profile from an exported file. Devices are matched by name in config.json, PID or product
         name; rules for devices or LEDs you do not have are left out (the message says which)."""
-        if not isinstance(data, dict) or data.get("virpil_led_bridge_profile") != 1 or \
-                not isinstance(data.get("profile"), dict):
-            raise ValueError("This is not a profile file exported by Virpil LED Bridge")
+        if _file_kind(data) != "profile" or not isinstance(data.get("profile"), dict):
+            raise ValueError("This is not a profile file exported by CockpitLink")
         src = data["profile"]
         src_devs = data.get("devices") or {}
 
@@ -2081,10 +2095,10 @@ class Bridge:
     def _read_import(self, data) -> dict:
         """Checks an exported file and returns a clean copy, with the LED numbers converted if it was made for the
         old firmware."""
-        if not isinstance(data, dict) or data.get(CONFIG_FILE_KEY) != 1:
-            if isinstance(data, dict) and data.get("virpil_led_bridge_profile") == 1:
+        if _file_kind(data) != "config":
+            if _file_kind(data) == "profile":
                 raise ValueError("This is an aircraft profile file – import it in the Rules tab (Import …).")
-            raise ValueError("This is not a setup file exported by Virpil LED Bridge")
+            raise ValueError("This is not a setup file exported by CockpitLink")
         d = json.loads(json.dumps(data))
         devices = d.get("devices")
         if not isinstance(devices, dict) or not devices:
@@ -2651,12 +2665,12 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                     if dev:
                         base = data["devices"][dev].get("name", dev)
                     else:
-                        base = "VirpilLedBridge-setup-" + time.strftime("%Y%m%d")
+                        base = "CockpitLink-setup-" + time.strftime("%Y%m%d")
                     fname = re.sub(r"[^A-Za-z0-9._-]+", "-", base).strip("-") or "setup"
                     body = dump_config(data).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
-                    self.send_header("Content-Disposition", f'attachment; filename="{fname}.vlb-setup.json"')
+                    self.send_header("Content-Disposition", f'attachment; filename="{fname}.cockpitlink-setup.json"')
                     self.send_header("Content-Length", str(len(body)))
                     self.send_header("Cache-Control", "no-store")
                     self.end_headers()
@@ -2667,7 +2681,7 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                     body = (dump_config(data)).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
-                    self.send_header("Content-Disposition", f'attachment; filename="{fname}.vlb-profile.json"')
+                    self.send_header("Content-Disposition", f'attachment; filename="{fname}.cockpitlink-profile.json"')
                     self.send_header("Content-Length", str(len(body)))
                     self.send_header("Cache-Control", "no-store")
                     self.end_headers()
@@ -2789,7 +2803,8 @@ def udp_server(bridge: Bridge, host: str, port: int) -> None:
 # Start with Windows (per user, no admin rights needed)
 # --------------------------------------------------------------------------
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-_RUN_NAME = "VirpilLedBridge"
+_RUN_NAME = "CockpitLink"
+_OLD_RUN_NAME = "VirpilLedBridge"  # before 3.0
 
 
 def autostart_command() -> str | None:
@@ -2802,7 +2817,7 @@ def autostart_command() -> str | None:
 def autostart_status() -> dict:
     cmd = autostart_command()
     if cmd is None:
-        return {"available": False, "enabled": False, "reason": "Only available when running VirpilLedBridge.exe"}
+        return {"available": False, "enabled": False, "reason": "Only available when running CockpitLink.exe"}
     import winreg
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _RUN_KEY) as k:
@@ -2815,10 +2830,30 @@ def autostart_status() -> dict:
     return {"available": True, "enabled": True}
 
 
+def migrate_autostart() -> None:
+    """Before 3.0 the entry was called VirpilLedBridge and pointed at VirpilLedBridge.exe. If it is there, it is
+    replaced by one for this exe, so Start with Windows stays on after the update."""
+    cmd = autostart_command()
+    if cmd is None:
+        return
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_READ | winreg.KEY_SET_VALUE) as k:
+            try:
+                winreg.QueryValueEx(k, _OLD_RUN_NAME)
+            except OSError:
+                return
+            winreg.SetValueEx(k, _RUN_NAME, 0, winreg.REG_SZ, cmd)
+            winreg.DeleteValue(k, _OLD_RUN_NAME)
+        log.info("Start with Windows moved from VirpilLedBridge to CockpitLink (%s).", cmd)
+    except OSError as e:
+        log.warning("Could not move the Start with Windows entry from VirpilLedBridge: %s", e)
+
+
 def set_autostart(enabled: bool) -> str:
     cmd = autostart_command()
     if cmd is None:
-        raise ValueError("Start with Windows is only available when running VirpilLedBridge.exe")
+        raise ValueError("Start with Windows is only available when running CockpitLink.exe")
     import winreg
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, _RUN_KEY) as k:
         if enabled:
@@ -2863,28 +2898,28 @@ def start_tray(bridge: Bridge, url: str):
 
     def reload_cfg(icon, item):
         try:
-            icon.notify(bridge.reload(), "LED Bridge")
+            icon.notify(bridge.reload(), "CockpitLink")
         except ValueError as e:
             log.error("Could not read the config: %s", e)
-            icon.notify(str(e), "LED Bridge – config error")
+            icon.notify(str(e), "CockpitLink – config error")
 
     def quit_app(icon, item):
         bridge.request_stop()
 
     def toggle_autostart(icon, item):
         try:
-            icon.notify(set_autostart(not autostart_status()["enabled"]), "LED Bridge")
+            icon.notify(set_autostart(not autostart_status()["enabled"]), "CockpitLink")
         except (ValueError, OSError) as e:
             log.error("Start with Windows: %s", e)
-            icon.notify(str(e), "LED Bridge")
+            icon.notify(str(e), "CockpitLink")
 
     def choose(select: str):
         def run(icon, item):
             try:
-                icon.notify(bridge.select_profile(select), "LED Bridge")
+                icon.notify(bridge.select_profile(select), "CockpitLink")
             except (ValueError, OSError) as e:
                 log.error("Profile: %s", e)
-                icon.notify(str(e), "LED Bridge")
+                icon.notify(str(e), "CockpitLink")
         return run
 
     def is_selected(select: str):
@@ -2903,7 +2938,7 @@ def start_tray(bridge: Bridge, url: str):
         return f"Profile: {st['active'] or 'all aircraft'}"
 
     menu = pystray.Menu(
-        pystray.MenuItem(f"Virpil LED Bridge v{VERSION}", lambda icon, item: None, enabled=False),
+        pystray.MenuItem(f"CockpitLink v{VERSION}", lambda icon, item: None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Open control panel", open_ui, default=True),
         pystray.MenuItem(profile_title, pystray.Menu(profile_items),
@@ -2915,7 +2950,7 @@ def start_tray(bridge: Bridge, url: str):
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit", quit_app),
     )
-    icon = pystray.Icon("virpil-led-bridge", make_icon_image(), f"Virpil LED Bridge v{VERSION}", menu)
+    icon = pystray.Icon("cockpitlink", make_icon_image(), f"CockpitLink v{VERSION}", menu)
     threading.Thread(target=icon.run, daemon=True, name="tray").start()
     return icon
 
@@ -2929,7 +2964,7 @@ def main() -> int:
         sys.stderr = open(os.devnull, "w")
     has_console = sys.stderr is not None and getattr(sys.stderr, "name", "") != os.devnull
 
-    ap = argparse.ArgumentParser(description="Virpil LED Bridge for MSFS")
+    ap = argparse.ArgumentParser(description="CockpitLink for MSFS")
     ap.add_argument("--config", default=str(app_dir() / "config.json"))
     ap.add_argument("--dry-run", action="store_true", help="Do not call VPC_LED_Control, log only")
     ap.add_argument("--no-sim", action="store_true", help="Do not connect to MSFS, API only")
@@ -2987,7 +3022,8 @@ def main() -> int:
     server.daemon_threads = True
     bridge.server = server
 
-    log.info("Virpil LED Bridge %s. Config: %s", VERSION, args.config)
+    log.info("CockpitLink %s. Config: %s", VERSION, args.config)
+    migrate_autostart()
     if api.get("udp_port"):
         threading.Thread(target=udp_server, args=(bridge, host, api["udp_port"]), daemon=True, name="udp").start()
     bridge.start()
@@ -2997,7 +3033,7 @@ def main() -> int:
     if icon is not None:
         time.sleep(0.5)
         try:
-            icon.notify("Running. Double-click the icon for the control panel.", "Virpil LED Bridge")
+            icon.notify("Running. Double-click the icon for the control panel.", "CockpitLink")
         except Exception:  # noqa: BLE001
             pass
     if args.open:

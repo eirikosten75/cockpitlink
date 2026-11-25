@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you! With this, the panel can be added to the [drawing library](https://github.com/eirikosten75/virpil-led-bridge/tree/main/layouts), so other owners get its drawing and LED names automatically.
+        Thank you! With this, the panel can be added to the [drawing library](https://github.com/eirikosten75/cockpitlink/tree/main/layouts), so other owners get its drawing and LED names automatically.
 
         **The quickest way:** in the control panel, name the LEDs with **Setup → Walk through one by one**, draw the panel with **Edit drawing**, and paste the two entries asked for below. Fill in what you can – partial information helps too.
   - type: input

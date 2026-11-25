@@ -1,5 +1,5 @@
-# Builds VirpilLedBridge.exe from virpil_bridge.py and ui.html (plus the layouts library folder and config.example.json).
-# Only needed when virpil_bridge.py or ui.html has changed. Changes to config.json and layouts.json
+# Builds CockpitLink.exe from cockpitlink.py and ui.html (plus the layouts library folder and config.example.json).
+# Only needed when cockpitlink.py or ui.html has changed. Changes to config.json and layouts.json
 # work without a rebuild.
 # Requires: python -m pip install -r requirements-build.txt
 # Releases are built the same way by GitHub Actions (.github/workflows/build.yml).
@@ -8,14 +8,14 @@
 # at http://127.0.0.1:8765/. The log is also written to bridge.log next to config.json.
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$work = Join-Path $env:TEMP "virpil-led-bridge-build"
+$work = Join-Path $env:TEMP "cockpitlink-build"
 $ico  = Join-Path $here "icon.ico"
 
 # Make the program icon from the same drawing as the tray icon.
-python -c "import sys; sys.path.insert(0, r'$here'); import virpil_bridge as v; v.make_icon_image().save(r'$ico', sizes=[(16,16),(32,32),(48,48),(64,64)])"
+python -c "import sys; sys.path.insert(0, r'$here'); import cockpitlink as v; v.make_icon_image().save(r'$ico', sizes=[(16,16),(32,32),(48,48),(64,64)])"
 
 python -m PyInstaller --noconfirm --clean --onefile --noconsole `
-    --name VirpilLedBridge `
+    --name CockpitLink `
     --icon $ico `
     --collect-all SimConnect `
     --hidden-import pystray._win32 `
@@ -25,8 +25,8 @@ python -m PyInstaller --noconfirm --clean --onefile --noconsole `
     --distpath $here `
     --workpath (Join-Path $work "work") `
     --specpath $work `
-    (Join-Path $here "virpil_bridge.py")
+    (Join-Path $here "cockpitlink.py")
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "Done: $(Join-Path $here 'VirpilLedBridge.exe')"
+    Write-Host "Done: $(Join-Path $here 'CockpitLink.exe')"
 }

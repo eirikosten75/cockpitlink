@@ -1,11 +1,11 @@
-# Contributing to Virpil LED Bridge
+# Contributing to CockpitLink
 
 Thanks for wanting to help! Bug reports, panel drawings, rule ideas and code are all welcome.
 Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Reporting a bug
 
-Open an [issue](https://github.com/eirikosten75/virpil-led-bridge/issues/new/choose) using the **Bug report** form, and
+Open an [issue](https://github.com/eirikosten75/cockpitlink/issues/new/choose) using the **Bug report** form, and
 include:
 
 - the version (shown next to the title in the control panel, and at the top of the tray icon's menu),
@@ -32,7 +32,7 @@ file per panel. The easiest way:
 3. Open a pull request.
 
 No time for a pull request? Fill in the
-[panel information form](https://github.com/eirikosten75/virpil-led-bridge/issues/new?template=panel_info.yml)
+[panel information form](https://github.com/eirikosten75/cockpitlink/issues/new?template=panel_info.yml)
 instead – the PID, the LED names and numbers, and (if you have one) your drawing are all that is needed. Panels we
 especially lack: **Control Panel #3**, and any other Virpil device with LEDs.
 
@@ -48,7 +48,7 @@ Rules for specific aircraft (for example with LVARs) can be shared as an issue o
 2. Install the requirements and run from Python (README, section 8):
    ```
    pip install SimConnect pystray pillow
-   python virpil_bridge.py --dry-run -v
+   python cockpitlink.py --dry-run -v
    ```
    `--dry-run` logs the LED commands instead of sending them, so you can test without the hardware.
 3. Keep changes focused – one fix or feature per pull request.

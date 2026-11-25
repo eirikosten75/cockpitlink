@@ -1,10 +1,23 @@
 # Changelog
 
-All notable changes to Virpil LED Bridge. Downloads are on the
-[Releases page](https://github.com/eirikosten75/virpil-led-bridge/releases).
+All notable changes to CockpitLink (called Virpil LED Bridge before 3.0). Downloads are on the
+[Releases page](https://github.com/eirikosten75/cockpitlink/releases).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
+
+## [3.0] – 2026-11-25
+
+### Changed – new name
+- **Virpil LED Bridge is now called CockpitLink.** The name is no longer tied to one maker's hardware or to LEDs
+  alone. It is the same program: replace `VirpilLedBridge.exe` with `CockpitLink.exe` in the same folder, and your
+  `config.json`, `layouts.json`, backups and photos are used as they are. The control panel stays at
+  http://127.0.0.1:8765/.
+- The program, the zip (`CockpitLink-v3.0.zip`), the tray icon, the control panel and the documentation use the new
+  name. The GitHub repository is now `eirikosten75/cockpitlink`; links to the old address keep working.
+- *Start with Windows* is moved to the new name automatically on the first start, if it was on.
+- Exported files are now called `.cockpitlink-setup.json` and `.cockpitlink-profile.json`. Files exported by Virpil
+  LED Bridge can still be imported.
 
 ## [2.2.2] – 2026-11-24
 
@@ -218,16 +231,22 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
-[2.0]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v2.0
-[1.9]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.9
-[1.8]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.8
-[1.7.1]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.7.1
-[1.7]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.7
-[1.6]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.6
-[1.5]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.5
-[1.4]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.4
-[1.3.3]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.3
-[1.3.2]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.2
-[1.3.1]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3.1
-[1.3]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.3
-[1.2]: https://github.com/eirikosten75/virpil-led-bridge/releases/tag/v1.2
+[3.0]: https://github.com/eirikosten75/cockpitlink/releases/tag/v3.0
+[2.2.2]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.2.2
+[2.2.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.2.1
+[2.2]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.2
+[2.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.1
+[2.0.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.0.1
+[2.0]: https://github.com/eirikosten75/cockpitlink/releases/tag/v2.0
+[1.9]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.9
+[1.8]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.8
+[1.7.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.7.1
+[1.7]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.7
+[1.6]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.6
+[1.5]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.5
+[1.4]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.4
+[1.3.3]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.3.3
+[1.3.2]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.3.2
+[1.3.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.3.1
+[1.3]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.3
+[1.2]: https://github.com/eirikosten75/cockpitlink/releases/tag/v1.2

@@ -1,6 +1,6 @@
 # Accessibility
 
-Virpil LED Bridge is a small hobby project, but it should be usable by as many simmers as possible. This page
+CockpitLink is a small hobby project, but it should be usable by as many simmers as possible. This page
 describes what works today, what does not, and how to tell us about barriers.
 
 ## What the project does
@@ -52,7 +52,7 @@ the LEDs show (gear, flaps, canopy …) is still shown in the cockpit in MSFS.
 ## Reporting a barrier
 
 If something in the bridge or the control panel is hard or impossible for you to use, please
-[open an issue](https://github.com/eirikosten75/virpil-led-bridge/issues/new/choose) and describe:
+[open an issue](https://github.com/eirikosten75/cockpitlink/issues/new/choose) and describe:
 
 - what you were trying to do,
 - what got in the way,

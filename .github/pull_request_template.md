@@ -13,4 +13,4 @@
 - [ ] One focused change
 - [ ] Text in the program and docs is in English (British spelling)
 - [ ] `README.md` updated if the change affects how the program is used
-- [ ] I agree that my contribution is licensed under GPL-3.0 (see [CONTRIBUTING.md](https://github.com/eirikosten75/virpil-led-bridge/blob/main/CONTRIBUTING.md))
+- [ ] I agree that my contribution is licensed under GPL-3.0 (see [CONTRIBUTING.md](https://github.com/eirikosten75/cockpitlink/blob/main/CONTRIBUTING.md))

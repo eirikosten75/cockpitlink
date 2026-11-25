@@ -6,6 +6,7 @@ photos/
 *.json.tmp
 
 # Build output (the exe is published as a GitHub release instead)
+CockpitLink.exe
 VirpilLedBridge.exe
 icon.ico
 build/

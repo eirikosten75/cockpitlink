@@ -1,4 +1,4 @@
-# Builds VirpilLedBridge.exe on GitHub from the source code and attaches the zip to the release,
+# Builds CockpitLink.exe on GitHub from the source code and attaches the zip to the release,
 # so anyone can see exactly which code the exe was built from.
 name: Build exe
 
@@ -64,23 +64,23 @@ jobs:
         shell: pwsh
         run: |
           ./build.ps1
-          if (-not (Test-Path VirpilLedBridge.exe)) { throw "The build did not produce VirpilLedBridge.exe" }
+          if (-not (Test-Path CockpitLink.exe)) { throw "The build did not produce CockpitLink.exe" }
 
       - name: Make the zip
         id: zip
         shell: pwsh
         run: |
-          $name = if ($env:TAG) { "VirpilLedBridge-$env:TAG.zip" } else { "VirpilLedBridge-${{ github.sha }}.zip" }
-          Compress-Archive -Path VirpilLedBridge.exe, config.example.json, README.md, LICENSE -DestinationPath $name
+          $name = if ($env:TAG) { "CockpitLink-$env:TAG.zip" } else { "CockpitLink-${{ github.sha }}.zip" }
+          Compress-Archive -Path CockpitLink.exe, config.example.json, README.md, LICENSE -DestinationPath $name
           "name=$name" >> $env:GITHUB_OUTPUT
-          $exe = (Get-FileHash VirpilLedBridge.exe -Algorithm SHA256).Hash
+          $exe = (Get-FileHash CockpitLink.exe -Algorithm SHA256).Hash
           $zip = (Get-FileHash $name -Algorithm SHA256).Hash
           "### Build of ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}" >> $env:GITHUB_STEP_SUMMARY
           "Source commit: ``$(git rev-parse HEAD)`` · PyInstaller bootloader compiled in this run" >> $env:GITHUB_STEP_SUMMARY
           "" >> $env:GITHUB_STEP_SUMMARY
           "| File | SHA-256 |" >> $env:GITHUB_STEP_SUMMARY
           "|---|---|" >> $env:GITHUB_STEP_SUMMARY
-          "| VirpilLedBridge.exe | ``$exe`` |" >> $env:GITHUB_STEP_SUMMARY
+          "| CockpitLink.exe | ``$exe`` |" >> $env:GITHUB_STEP_SUMMARY
           "| $name | ``$zip`` |" >> $env:GITHUB_STEP_SUMMARY
 
       - uses: actions/upload-artifact@v4

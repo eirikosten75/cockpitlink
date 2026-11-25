@@ -24,7 +24,7 @@ The last five can only be chosen by hand (**Drawings → Use a library drawing**
 that the bridge could recognise them by. Give the LEDs the names the drawing expects with **Setup**.
 
 Own a Control Panel #3, a VMAX Prime Throttle or a Vector part? Please check the LEDs with **Setup → Walk through one by one** (and
-**Try command number** for lights that are missing) and send the PID and any differences with the [panel information form](https://github.com/eirikosten75/virpil-led-bridge/issues/new?template=panel_info.yml).
+**Try command number** for lights that are missing) and send the PID and any differences with the [panel information form](https://github.com/eirikosten75/cockpitlink/issues/new?template=panel_info.yml).
 
 ## Format
 
@@ -62,5 +62,5 @@ Own a Control Panel #3, a VMAX Prime Throttle or a Vector part? Please check the
 Draw the panels yourself – outlines and buttons only, no Virpil product photos.
 
 Have a panel that is not here? Send its information with the
-[panel information form](https://github.com/eirikosten75/virpil-led-bridge/issues/new?template=panel_info.yml), or
+[panel information form](https://github.com/eirikosten75/cockpitlink/issues/new?template=panel_info.yml), or
 see [CONTRIBUTING.md](../CONTRIBUTING.md).
