@@ -23,3 +23,5 @@ config.json
 
 # Your own panel drawings and changes (the library drawings are in layouts/)
 layouts.json
+SETUP-MOVED.txt
+portable.txt
