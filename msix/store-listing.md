@@ -30,7 +30,7 @@ CockpitLink is free and open source (GPL-3.0): https://github.com/eirikosten75/c
 Not affiliated with VIRPIL Controls or Microsoft.
 
 ## What's new in this version
-First version in the Microsoft Store. The same program as CockpitLink 3.1 on GitHub; your setup is kept in %LOCALAPPDATA%\CockpitLink and shared with the zip version.
+First version in the Microsoft Store. The same program as CockpitLink 3.2 on GitHub; your setup is kept in %LOCALAPPDATA%\CockpitLink and shared with the zip version.
 
 ## Features (one per line, up to 20)
 Rules per LED: click an LED on the drawing of your panel and set its colours

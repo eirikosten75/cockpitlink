@@ -6,6 +6,16 @@ All notable changes to CockpitLink (called Virpil LED Bridge before 3.0). Downlo
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.2] – 2026-11-25
+
+### Added
+- **Ready for the Microsoft Store.** Each release now also builds a Microsoft Store package (MSIX) with the new logo
+  for the Start menu, taskbar and tiles. It uses the same data folder as the zip version, `%LOCALAPPDATA%\CockpitLink`,
+  so the setup is shared between them.
+- When CockpitLink runs as the Store app, *Start with Windows* is switched in Windows Settings → Apps → Startup (the
+  checkbox opens it), and a warning shows if both the Store app and the zip's `CockpitLink.exe` start with Windows.
+- A [privacy policy](https://github.com/eirikosten75/cockpitlink/wiki/Privacy-policy): CockpitLink collects no data.
+
 ## [3.1] – 2026-11-25
 
 ### Changed
@@ -252,6 +262,7 @@ First public release.
 - HTTP and UDP API for SPAD.neXt, Stream Deck and scripts.
 - Tray icon, *Start with Windows*, `config.json` backups, licensed under GPL-3.0.
 
+[3.2]: https://github.com/eirikosten75/cockpitlink/releases/tag/v3.2
 [3.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v3.1
 [3.0.1]: https://github.com/eirikosten75/cockpitlink/releases/tag/v3.0.1
 [3.0]: https://github.com/eirikosten75/cockpitlink/releases/tag/v3.0
