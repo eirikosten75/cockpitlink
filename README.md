@@ -13,19 +13,32 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 
 ## ⬇️ Download
 
-**[Download the latest version (CockpitLink-v3.0.1.zip)](https://github.com/eirikosten75/cockpitlink/releases/download/v3.0.1/CockpitLink-v3.0.1.zip)**
+**[Download the latest version (CockpitLink-v3.1.zip)](https://github.com/eirikosten75/cockpitlink/releases/download/v3.1/CockpitLink-v3.1.zip)**
 – or see all versions under [Releases](https://github.com/eirikosten75/cockpitlink/releases).
 
 The zip contains `CockpitLink.exe` (no Python needed), `config.example.json`, this README and the licence. Unzip it to a folder of your choice and follow the quick start below. On the first start the bridge finds
 your Virpil devices and makes your own `config.json` (section 2). Updating later never overwrites it.
+
+### Where your files are
+
+Your setup – `config.json`, `layouts.json`, the `backups` and `photos` folders and the log `bridge.log` – is kept in
+**`%LOCALAPPDATA%\CockpitLink`** (for example `C:\Users\<you>\AppData\Local\CockpitLink`), not next to the exe.
+*Settings → About → Open data folder* (or *Open data folder* in the tray menu) opens it. So the exe can be anywhere,
+also in `C:\Program Files`, and an update is just a new exe.
+
+- **Updating from 3.0 or Virpil LED Bridge:** on the first start, 3.1 copies `config.json`, `layouts.json`, `backups`
+  and `photos` from the exe's folder into the data folder. The old files are left where they were, with a note
+  (`SETUP-MOVED.txt`); they are no longer used and can be deleted.
+- **Portable:** to keep everything in the exe's folder instead (for example on a USB stick), put an empty file
+  called `portable.txt` next to `CockpitLink.exe`.
 
 ### Updating from Virpil LED Bridge
 
 Version 3.0 is the same program with a new name. To update from Virpil LED Bridge 2.x:
 
 1. Quit the old bridge (tray icon → *Quit*).
-2. Put `CockpitLink.exe` in the same folder as your `config.json` and `layouts.json` – they are used as they are,
-   with your devices, LED names, rules, profiles and drawings.
+2. Put `CockpitLink.exe` in the same folder as your `config.json` and `layouts.json` – they are copied into the
+   data folder on the first start and used as they are, with your devices, LED names, rules, profiles and drawings.
 3. Start `CockpitLink.exe`. If *Start with Windows* was on, it now starts CockpitLink instead.
 4. Delete the old `VirpilLedBridge.exe`.
 
@@ -60,7 +73,7 @@ The rule editor – a simvar (or LVAR), the LED, and the states with their colou
    the bridge uses the LED numbers of that firmware (see section 2).
 2. Plug in your Virpil devices, and unzip the files to a folder of your choice.
 3. Double-click `CockpitLink.exe`. It needs no Python and has no console window. On the first start it finds
-   your Virpil devices and writes `config.json` next to the exe (see section 2).
+   your Virpil devices and writes `config.json` in the data folder, `%LOCALAPPDATA%\CockpitLink` (see section 2).
 4. Double-click the **tray icon** (it may be hidden under the ^ arrow) to open the control panel
    at http://127.0.0.1:8765/.
 5. If the log says it cannot find `VPC_LED_Control.exe`, fix `vpc_led_control.exe` in `config.json`
@@ -153,7 +166,7 @@ The control panel has five tabs. The page remembers the last one, and you can li
   MongoosT-50CM3 throttle – or one you made yourself) are drawn with their LEDs where they are on the real panel; other devices are shown as a
   grid. Hover over an LED to see its names, colour and which rule set it.
 - **Drawings:** the drawing editor (section 5) – choose a panel at the top, or press *Edit drawing* on a panel.
-- **Log:** live, with a filter. The log is also written to `bridge.log` next to `config.json`.
+- **Log:** live, with a filter. The log is also written to `bridge.log` in the data folder.
 - **Settings:** aircraft profiles on/off, *Start with Windows*, *Find new devices*, *Back up and share* (below), and the
   version and config path.
 
@@ -271,7 +284,7 @@ in the *Panels* tab (**Make drawing** if it has none yet). In the editor you can
 - put LEDs that are not on the drawing yet onto it, one by one or all at once in a grid;
 - draw boxes for switches, knobs and levers (drag the blue corner to change the size);
 - load a photo of your panel and trace it: the LEDs and boxes are drawn on top of the photo, and **Match photo shape**
-  gives the drawing the same proportions. The photo stays on your PC in the `photos` folder next to `config.json`; if
+  gives the drawing the same proportions. The photo stays on your PC in the `photos` folder in the data folder; if
   you like, it can be shown behind the drawing in the control panel too.
 
 **Save drawing** writes your `layouts.json` (the old one is copied to `backups` first). **Undo** (Ctrl+Z) takes back

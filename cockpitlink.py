@@ -41,6 +41,7 @@ import logging
 import logging.handlers
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -51,7 +52,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "3.0.1"
+VERSION = "3.1"
 
 log = logging.getLogger("cockpitlink")
 
@@ -79,8 +80,53 @@ def quantize(v: int) -> int:
 
 
 def app_dir() -> Path:
-    """The folder with config.json: next to the exe, or next to the script."""
+    """The folder of the exe (or of the script when run from Python)."""
     return Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+
+
+# Your files – config.json, layouts.json, backups, photos and bridge.log – are kept in one data folder:
+# %LOCALAPPDATA%\CockpitLink, the same for the zip and the Microsoft Store version. With a file called
+# portable.txt next to the exe, they are kept in the exe's folder instead (as before 3.1).
+DATA_FOLDER_NAME = "CockpitLink"
+PORTABLE_MARKER = "portable.txt"
+SETUP_ITEMS = ("config.json", "layouts.json", "backups", "photos")
+DATA_INFO: dict = {"portable": False, "copied_from": None}
+
+
+def is_portable() -> bool:
+    return (app_dir() / PORTABLE_MARKER).exists()
+
+
+def data_dir() -> Path:
+    if is_portable():
+        return app_dir()
+    base = os.environ.get("LOCALAPPDATA")
+    return Path(base) / DATA_FOLDER_NAME if base else app_dir()
+
+
+def copy_old_setup(target: Path) -> Path | None:
+    """Before 3.1 the files were kept next to the exe. If the data folder has no config.json yet but the exe's
+    folder has one, the setup is copied over (the originals are left where they are, with a note). Returns the
+    folder it was copied from, or None."""
+    src = app_dir()
+    if src.resolve() == target.resolve() or (target / "config.json").exists() or not (src / "config.json").exists():
+        return None
+    target.mkdir(parents=True, exist_ok=True)
+    for name in SETUP_ITEMS:
+        item = src / name
+        if item.is_dir():
+            shutil.copytree(item, target / name, dirs_exist_ok=True)
+        elif item.is_file():
+            shutil.copy2(item, target / name)
+    try:
+        (src / "SETUP-MOVED.txt").write_text(
+            f"From CockpitLink 3.1 your setup (config.json, layouts.json, backups, photos) is kept in\n{target}\n\n"
+            "It was copied there from this folder. The files here are not used any more and can be deleted.\n"
+            "To keep everything in this folder instead, put a file called portable.txt next to CockpitLink.exe.\n",
+            encoding="utf-8")
+    except OSError:
+        pass
+    return src
 
 
 def resource_dir() -> Path:
@@ -2516,6 +2562,7 @@ class Bridge:
             "started": self.started,
             "uptime_s": round(time.time() - self.started),
             "config_path": self.config_path,
+            "data_dir": {"path": str(Path(self.config_path).parent), **DATA_INFO},
             "config_loaded_at": self.loaded_at,
             "dry_run": self.dry_run,
             "sim": {
@@ -2737,6 +2784,14 @@ def make_http_handler(bridge: Bridge, ring: RingHandler):
                         self._reply(200, {"ok": True, "message": set_autostart(bool(p["enabled"]))})
                     except OSError as e:
                         self._reply(500, {"ok": False, "error": f"Could not change the setting: {e}"})
+                elif path == "/api/open-data-folder" and self.command == "POST":
+                    if not self._from_ui():
+                        return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
+                    try:
+                        open_data_folder(bridge.config_path)
+                        self._reply(200, {"ok": True, "message": "The data folder is open in Explorer."})
+                    except OSError as e:
+                        self._reply(500, {"ok": False, "error": f"Could not open the folder: {e}"})
                 elif path == "/api/quit" and self.command == "POST":
                     if not self._from_ui():
                         return self._reply(403, {"ok": False, "error": "Missing X-Bridge-UI"})
@@ -2814,7 +2869,33 @@ def autostart_command() -> str | None:
     return f'"{sys.executable}"'
 
 
+# The Microsoft Store version starts with Windows through a startup task in its package, not the Run key.
+STORE_PACKAGE_FAMILY = "eirik75.CockpitLink_88e0d0m75ww4e"
+STORE_STARTUP_TASK = "CockpitLinkStartup"
+
+
+def store_autostart_enabled() -> bool:
+    """True when CockpitLink from the Microsoft Store is installed and set to start with Windows."""
+    if os.name != "nt":
+        return False
+    import winreg
+    key = (r"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData"
+           f"\\{STORE_PACKAGE_FAMILY}\\{STORE_STARTUP_TASK}")
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key) as k:
+            state, _ = winreg.QueryValueEx(k, "State")
+    except OSError:
+        return False
+    return state in (2, 4)  # enabled, enabled by policy
+
+
 def autostart_status() -> dict:
+    status = _autostart_status()
+    status["store_enabled"] = store_autostart_enabled()
+    return status
+
+
+def _autostart_status() -> dict:
     cmd = autostart_command()
     if cmd is None:
         return {"available": False, "enabled": False, "reason": "Only available when running CockpitLink.exe"}
@@ -2871,6 +2952,14 @@ def set_autostart(enabled: bool) -> str:
 # --------------------------------------------------------------------------
 # Tray icon
 # --------------------------------------------------------------------------
+def open_data_folder(config_path: str) -> None:
+    folder = Path(config_path).parent
+    if os.name == "nt":
+        os.startfile(folder)  # noqa: S606 – opens the folder in Explorer
+    else:
+        subprocess.Popen(["xdg-open", str(folder)])
+
+
 def make_icon_image(size: int = 64):
     """The CockpitLink logo: an attitude indicator whose horizon is a link with two nodes (the same drawing as
     docs/images/cockpitlink-logo.svg, on a 64-unit grid). Drawn 8x larger and scaled down for smooth edges."""
@@ -2960,6 +3049,7 @@ def start_tray(bridge: Bridge, url: str):
         pystray.MenuItem(profile_title, pystray.Menu(profile_items),
                          visible=lambda item: profiles_on(bridge.cfg)),
         pystray.MenuItem("Reload config", reload_cfg),
+        pystray.MenuItem("Open data folder", lambda icon, item: open_data_folder(bridge.config_path)),
         pystray.MenuItem("Start with Windows", toggle_autostart,
                          checked=lambda item: autostart_status()["enabled"],
                          enabled=lambda item: autostart_status()["available"]),
@@ -2981,13 +3071,25 @@ def main() -> int:
     has_console = sys.stderr is not None and getattr(sys.stderr, "name", "") != os.devnull
 
     ap = argparse.ArgumentParser(description="CockpitLink for MSFS")
-    ap.add_argument("--config", default=str(app_dir() / "config.json"))
+    ap.add_argument("--config", default=None, help="config.json to use (default: in the data folder)")
     ap.add_argument("--dry-run", action="store_true", help="Do not call VPC_LED_Control, log only")
     ap.add_argument("--no-sim", action="store_true", help="Do not connect to MSFS, API only")
     ap.add_argument("--no-tray", action="store_true", help="Do not show a tray icon")
     ap.add_argument("--open", action="store_true", help="Open the control panel in the browser on start")
     ap.add_argument("--verbose", "-v", action="store_true")
     args = ap.parse_args()
+    copied_from = None
+    if args.config is None:
+        folder = data_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        try:
+            copied_from = copy_old_setup(folder)
+        except OSError as e:
+            copied_from = None
+            print(f"Could not copy the setup into {folder}: {e}", file=sys.stderr)
+        args.config = str(folder / "config.json")
+        DATA_INFO["portable"] = is_portable()
+    DATA_INFO["copied_from"] = str(copied_from) if copied_from else None
 
     fmt = logging.Formatter("%(asctime)s %(levelname)-7s %(message)s", datefmt="%H:%M:%S")
     root = logging.getLogger()
@@ -3039,6 +3141,9 @@ def main() -> int:
     bridge.server = server
 
     log.info("CockpitLink %s. Config: %s", VERSION, args.config)
+    if copied_from:
+        log.info("Your setup was copied from %s to %s (the old files are left there and are no longer used).",
+                 copied_from, Path(args.config).parent)
     migrate_autostart()
     if api.get("udp_port"):
         threading.Thread(target=udp_server, args=(bridge, host, api["udp_port"]), daemon=True, name="udp").start()
