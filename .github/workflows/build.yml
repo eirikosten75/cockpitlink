@@ -15,6 +15,10 @@ on:
         description: "Attach the zip to the release (untick to only build a test artifact)"
         type: boolean
         default: true
+      package_version:
+        description: "Store package version (e.g. 3.2.1.0) – leave empty to use the program version"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -93,6 +97,8 @@ jobs:
         id: msix
         if: hashFiles('msix/build-msix.ps1') != ''
         shell: pwsh
+        env:
+          CL_PACKAGE_VERSION: ${{ inputs.package_version }}
         run: |
           ./msix/build-msix.ps1 -Exe CockpitLink.exe
           $file = Get-ChildItem CockpitLink-*.msix | Select-Object -First 1

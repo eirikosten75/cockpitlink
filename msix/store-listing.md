@@ -14,7 +14,7 @@ CockpitLink makes the LEDs on your VIRPIL control panels follow what happens in 
 
 It runs quietly in the system tray, reads the simulator through SimConnect and drives the LEDs with VIRPIL's own VPC_LED_Control.exe. Everything is set up in a local control panel in your browser – no programming needed:
 
-• Choose a panel, click an LED and make rules for it – like in SPAD.neXt.
+• Choose a panel, click an LED and set up its rules.
 • Search about 800 simulator variables, or use L-variables from your aircraft (A2A, PMDG, Fenix …).
 • Colours with the four brightness levels the panels actually have, and blinking.
 • Aircraft profiles: different rules for some aircraft, switched automatically.
@@ -43,7 +43,7 @@ Local HTTP and UDP API for SPAD.neXt, Stream Deck and scripts
 Starts with Windows if you want, runs in the tray
 
 ## Keywords (up to 7)
-Virpil, MSFS, flight simulator, LED, SimConnect, cockpit, SPAD.neXt
+Virpil, MSFS, flight simulator, LED, SimConnect, cockpit
 
 ## Category
 Utilities & tools (subcategory: none) – or Games → Simulation if Utilities is not accepted.
@@ -77,7 +77,8 @@ VPC_LED_Control.exe was not found; this is expected. The app only listens on 127
 - runFullTrust: CockpitLink is a desktop program. It runs VIRPIL's VPC_LED_Control.exe (part of the VIRPIL VPC
   Software Suite, installed separately) to set the LEDs, connects to Microsoft Flight Simulator through SimConnect,
   shows a tray icon and serves its control panel on 127.0.0.1.
-- unvirtualizedResources: CockpitLink keeps the user's setup (config.json, layouts.json, backups) in
+- unvirtualizedResources (NOT APPROVED by the Store on 26 Nov 2026 – removed from the package from 3.2.1.0; kept here
+  for reference): CockpitLink keeps the user's setup (config.json, layouts.json, backups) in
   %LOCALAPPDATA%\CockpitLink. The same program is also distributed as a standalone exe, which uses the same folder, so
   users keep their setup when they move between the two or reinstall. Without this, the Store version would see a
   separate copy and the setup would be deleted when the app is uninstalled.

@@ -16,7 +16,7 @@ CockpitLink makes the LEDs on your VIRPIL control panels follow what happens in 
 
 It runs quietly in the system tray, reads the simulator through SimConnect and drives the LEDs with VIRPIL's own VPC_LED_Control.exe. Everything is set up in a local control panel in your browser – no programming needed:
 
-• Choose a panel, click an LED and make rules for it – like in SPAD.neXt.
+• Choose a panel, click an LED and set up its rules.
 • Search about 800 simulator variables, or use L-variables from your aircraft (A2A, PMDG, Fenix …).
 • Colours with the four brightness levels the panels actually have, and blinking.
 • Aircraft profiles: different rules for some aircraft, switched automatically.
@@ -32,7 +32,7 @@ CockpitLink is free and open source (GPL-3.0): https://github.com/eirikosten75/c
 Not affiliated with VIRPIL Controls or Microsoft.
 
 --- What's new in this version ---
-First version in the Microsoft Store. The same program as CockpitLink 3.2 on GitHub; your setup is kept in %LOCALAPPDATA%\CockpitLink and shared with the zip version.
+First version in the Microsoft Store – the same program as CockpitLink 3.2 on GitHub. A setup made with the GitHub version is picked up on the first start; to move it the other way, use Settings → Back up and share.
 
 --- Product features (one per field) ---
 Rules per LED: click an LED on the drawing of your panel and set its colours
@@ -51,7 +51,6 @@ flight simulator
 LED
 SimConnect
 cockpit
-SPAD.neXt
 
 --- Additional system requirements (only if the field exists) – Minimum ---
 VIRPIL controllers with LEDs (USB)
@@ -67,10 +66,10 @@ Microsoft Flight Simulator 2020 or 2024
 2. SUBMISSION OPTIONS
 =====================================================================
 
---- Restricted capabilities: why your app needs them ---
+--- Restricted capabilities: why your app needs them (only runFullTrust) ---
 runFullTrust: CockpitLink is a desktop program. It runs VIRPIL's VPC_LED_Control.exe (part of the VIRPIL VPC Software Suite, installed separately) to set the LEDs on the user's VIRPIL USB controllers, connects to Microsoft Flight Simulator through SimConnect, shows a tray icon and serves its control panel on 127.0.0.1.
 
-unvirtualizedResources: CockpitLink keeps the user's setup (config.json, layouts.json, backups) in %LOCALAPPDATA%\CockpitLink. The same program is also distributed as a standalone exe on GitHub, which uses the same folder, so users keep their setup when they move between the two or reinstall. Without this, the Store version would see a separate copy, and the user's setup would be deleted when the app is uninstalled.
+(unvirtualizedResources is no longer in the package – leave it out; only the runFullTrust text above is needed.)
 
 --- Notes for certification ---
 CockpitLink controls the LEDs of VIRPIL USB controllers from Microsoft Flight Simulator. To test it without the hardware: start the app – it adds a tray icon; double-click the icon (or open http://127.0.0.1:8765/ in a browser) to open the control panel. Without VIRPIL devices and the VIRPIL VPC Software Suite, it shows no panels and reports that VPC_LED_Control.exe was not found; this is expected. The app only listens on 127.0.0.1 (this PC), collects no data and needs no account. Source code: https://github.com/eirikosten75/cockpitlink

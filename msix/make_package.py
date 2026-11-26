@@ -6,6 +6,7 @@ Copies the exe, draws the logo images from the same drawing as the program icon 
 writes AppxManifest.xml with the version of cockpitlink.py (3.1 -> 3.1.0.0; the Store needs the last number to be 0).
 The folder is then packed with the Windows SDK's MakeAppx (see msix/build-msix.ps1).
 """
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -19,6 +20,9 @@ TARGET_SIZES = (16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256)
 
 
 def package_version(v: str) -> str:
+    # CL_PACKAGE_VERSION overrides it, e.g. 3.2.1.0 for a new Store package of the same program version
+    if os.environ.get("CL_PACKAGE_VERSION"):
+        return os.environ["CL_PACKAGE_VERSION"]
     parts = [int(x) for x in v.split(".")][:3]
     parts += [0] * (3 - len(parts))
     return ".".join(str(p) for p in parts) + ".0"
