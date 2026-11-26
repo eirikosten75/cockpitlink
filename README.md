@@ -13,6 +13,11 @@ The LEDs themselves are driven through Virpil's own `VPC_LED_Control.exe`, which
 
 ## ⬇️ Download
 
+<a href="https://apps.microsoft.com/detail/9PD2QM3K4D3X?mode=direct"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Get CockpitLink from the Microsoft Store"></a>
+
+**From the Microsoft Store:** [CockpitLink in the Microsoft Store](https://apps.microsoft.com/detail/9PD2QM3K4D3X) –
+installs and updates by itself. Or download the zip from GitHub (the same program):
+
 **[Download the latest version (CockpitLink-v3.2.zip)](https://github.com/eirikosten75/cockpitlink/releases/download/v3.2/CockpitLink-v3.2.zip)**
 – or see all versions under [Releases](https://github.com/eirikosten75/cockpitlink/releases).
 
@@ -29,6 +34,9 @@ also in `C:\Program Files`, and an update is just a new exe.
 - **Updating from 3.0 or Virpil LED Bridge:** on the first start, 3.1 copies `config.json`, `layouts.json`, `backups`
   and `photos` from the exe's folder into the data folder. The old files are left where they were, with a note
   (`SETUP-MOVED.txt`); they are no longer used and can be deleted.
+- **Microsoft Store version:** Windows gives Store apps their own copy of this folder. On the first start the Store
+  version picks up a setup made with the zip version; after that the two keep separate setups. To move a setup between
+  them, use *Settings → Back up and share*.
 - **Portable:** to keep everything in the exe's folder instead (for example on a USB stick), put an empty file
   called `portable.txt` next to `CockpitLink.exe`.
 
@@ -151,7 +159,7 @@ The control panel has five tabs. The page remembers the last one, and you can li
   devices are not plugged in. *Reload config* applies changes made to
   `config.json` by hand without a restart. If the file is invalid, the old config is kept and you are told what is
   wrong. *Quit bridge* sets the LEDs to their base colours and exits.
-- **Panels:** laid out like SPAD.neXt – the names of your devices on the left, the chosen device with its LEDs live in
+- **Panels:** the names of your devices on the left, the chosen device with its LEDs live in
   the middle, and on the right the rules for the LED you click, with *+ New rule for this LED* (the rule editor opens
   with that device and LED filled in), *Identify* and the LED's colour right now. *Setup* names the LEDs; *Find new
   devices* adds devices.

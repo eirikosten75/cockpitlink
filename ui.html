@@ -203,7 +203,7 @@
   .walking .walkbar { display: flex; }
   #devices .face .led:not(.slot) { cursor: pointer; }
   #devices .face .led.chosen { outline: 3px solid var(--accent); outline-offset: 3px; z-index: 4; }
-  /* Panels tab, as in SPAD.neXt: list of panels | the chosen panel | rules for the chosen LED */
+  /* Panels tab: list of panels | the chosen panel | rules for the chosen LED */
   /* Everything follows the window: a drawing shaped like a Virpil panel is 27 % of the window width (at least 340 px).
      Other shapes get the same area (--sz = √(aspect / 0.88)), so a wide drawing is wider and a tall one narrower, and
      no drawing is ever taller than the window. It only ever shrinks when the window gets narrower. The middle column

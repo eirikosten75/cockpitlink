@@ -73,7 +73,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [2.2] – 2026-11-24
 
 ### Changed
-- **The Panels tab works like SPAD.neXt.** The names of your devices are listed on the left, the chosen device is shown
+- **New layout for the Panels tab.** The names of your devices are listed on the left, the chosen device is shown
   large in the middle, and clicking one of its LEDs shows the rules for that LED on the right – turn them on/off, edit
   them, change their order, or press *+ New rule for this LED* to open the rule editor with the device and LED already
   filled in. *Identify* makes the LED blink on the panel. The Rules tab still lists all rules.
